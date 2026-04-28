@@ -1,0 +1,8 @@
+{
+  "private": true,
+  "scripts": {
+    "dev": "npm --prefix fontend run dev -- --host 127.0.0.1 --port 5173",
+    "build": "npm --prefix fontend run build",
+    "preview": "npm --prefix fontend run preview -- --host 127.0.0.1 --port 4173"
+  }
+}
