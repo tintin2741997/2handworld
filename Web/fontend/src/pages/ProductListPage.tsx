@@ -139,7 +139,7 @@ export function ProductListPage() {
     saleOnly;
 
   return (
-    <main className="min-h-screen pt-56 md:pt-60 pb-20">
+    <main className="min-h-screen pt-28 md:pt-32 pb-20">
       <div className="max-w-7xl mx-auto px-4 lg:px-8">
         <nav className="flex items-center text-sm text-muted mb-8">
           <Link to="/" className="hover:text-primary transition-colors">

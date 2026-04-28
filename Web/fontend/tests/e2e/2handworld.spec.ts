@@ -48,7 +48,7 @@ async function addProductToCart(page: Page, product: Product) {
   await expect(page.locator('main')).toContainText(product.name);
 }
 
-test.describe('2HANDWORLD buyer website', () => {
+test.describe('2HAND WORLD buyer website', () => {
   test.beforeEach(async ({ page }) => {
     await page.context().clearCookies();
     await page.goto('/');
@@ -57,7 +57,7 @@ test.describe('2HANDWORLD buyer website', () => {
 
   test('opens public pages and searches products', async ({ page }) => {
     await page.goto('/');
-    await expect(page.locator('header')).toContainText('2HANDWORLD');
+    await expect(page.locator('header')).toContainText('2HAND WORLD');
     await expect(page.locator('main')).toBeVisible();
 
     for (const path of ['/san-pham', '/cua-hang', '/tin-tuc', '/gioi-thieu', '/chinh-sach', '/lien-he', '/sitemap']) {

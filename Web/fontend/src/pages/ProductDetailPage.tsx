@@ -41,7 +41,7 @@ export function ProductDetailPage() {
   }, [product?.id]);
   if (!product) {
     return (
-      <main className="min-h-screen pt-56 md:pt-60 pb-20 flex items-center justify-center">
+      <main className="min-h-screen pt-28 md:pt-32 pb-20 flex items-center justify-center">
         <p className="text-muted">Đang tải sản phẩm...</p>
       </main>
     );
@@ -57,7 +57,7 @@ export function ProductDetailPage() {
     // Could add a toast notification here
   };
   return (
-    <main className="min-h-screen pt-56 md:pt-60 pb-20">
+    <main className="min-h-screen pt-28 md:pt-32 pb-20">
       <div className="max-w-7xl mx-auto px-4 lg:px-8">
         {/* Breadcrumb */}
         <nav className="flex items-center text-sm text-muted mb-8">

@@ -78,7 +78,7 @@ export function Header() {
 
   return (
     <header
-      className={`fixed w-full top-0 z-50 transition-all duration-300 ${isScrolled ? 'bg-white shadow-warm py-2' : 'bg-background py-4'}`}>
+      className={`fixed w-full top-0 z-50 transition-all duration-300 ${isScrolled ? 'bg-white shadow-warm py-2' : 'bg-background py-3'}`}>
       
       {/* Top Bar - Hidden on mobile */}
       {!isScrolled &&
@@ -95,23 +95,23 @@ export function Header() {
         </div>
       }
 
-      <div className="max-w-7xl mx-auto px-4 lg:px-8">
+      <div className="max-w-7xl mx-auto px-4 lg:px-6">
         <div className="flex justify-between items-center">
           {/* Logo */}
-          <Link to="/" className="flex items-center space-x-2 group">
-            <img src={logo2HandWorld} alt="2HANDWORLD Logo" className="w-20 h-20 object-contain" />
-            <span className="font-serif text-xl font-bold text-heading tracking-tight">
+          <Link to="/" className="flex items-center gap-2 group shrink-0">
+            <img src={logo2HandWorld} alt="2HANDWORLD Logo" className="w-10 h-10 md:w-12 md:h-12 object-contain" />
+            <span className="font-serif text-lg lg:text-xl font-bold text-heading tracking-tight whitespace-nowrap">
               2HAND WORLD
             </span>
           </Link>
 
           {/* Desktop Navigation */}
-          <nav className="hidden md:flex items-center space-x-8">
+          <nav className="hidden md:flex items-center gap-4 lg:gap-6 xl:gap-8">
             {navLinks.map((link) =>
             <Link
               key={link.name}
               to={link.path}
-              className={`font-medium transition-colors hover:text-primary ${location.pathname === link.path ? 'text-primary' : 'text-body'}`}>
+              className={`text-sm lg:text-base font-medium whitespace-nowrap transition-colors hover:text-primary ${location.pathname === link.path ? 'text-primary' : 'text-body'}`}>
               
                 {link.name}
               </Link>
@@ -119,7 +119,7 @@ export function Header() {
           </nav>
 
           {/* Actions */}
-          <div className="flex items-center space-x-5">
+          <div className="flex items-center gap-3 lg:gap-4">
             <form
               onSubmit={handleSearch}
               className="hidden lg:flex items-center relative">
@@ -129,7 +129,7 @@ export function Header() {
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Tìm kiếm sản phẩm..."
-                className="pl-10 pr-4 py-2 rounded-full border border-border bg-white focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary w-64 transition-all" />
+                className="pl-10 pr-4 py-2 rounded-full border border-border bg-white focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary w-52 xl:w-64 transition-all" />
               
               <button
                 type="submit"

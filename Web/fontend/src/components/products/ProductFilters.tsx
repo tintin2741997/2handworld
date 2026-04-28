@@ -63,6 +63,10 @@ export function ProductFilters() {
 
   const getValues = (key: string) => searchParams.getAll(key);
 
+  const updateSearchParams = (next: URLSearchParams) => {
+    setSearchParams(next, { replace: true, preventScrollReset: true });
+  };
+
   const updateMultiParam = (key: string, value: string, checked: boolean) => {
     const next = new URLSearchParams(searchParams);
     const current = next.getAll(key);
@@ -73,20 +77,20 @@ export function ProductFilters() {
       current.filter((item) => item !== value);
 
     [...new Set(updated)].forEach((item) => next.append(key, item));
-    setSearchParams(next);
+    updateSearchParams(next);
   };
 
   const setSingleParam = (key: string, value: string) => {
     const next = new URLSearchParams(searchParams);
     value ? next.set(key, value) : next.delete(key);
-    setSearchParams(next);
+    updateSearchParams(next);
   };
 
   const applyPriceFilter = () => {
     const next = new URLSearchParams(searchParams);
     minPrice ? next.set('minPrice', minPrice) : next.delete('minPrice');
     maxPrice ? next.set('maxPrice', maxPrice) : next.delete('maxPrice');
-    setSearchParams(next);
+    updateSearchParams(next);
   };
 
   const clearFilters = () => {
@@ -97,7 +101,7 @@ export function ProductFilters() {
     }
     setMinPrice('');
     setMaxPrice('');
-    setSearchParams(next);
+    updateSearchParams(next);
   };
 
   return (

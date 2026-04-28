@@ -3,11 +3,7 @@ USE `2handworld_schema`;
 INSERT INTO `Category` (`CategoryID`, `CategoryName`) VALUES
 (101, 'Ao thun secondhand'),
 (102, 'Ao so mi vintage'),
-(103, 'Ao khoac'),
-(104, 'Quan jeans'),
-(105, 'Vay va dam'),
-(106, 'Tui xach'),
-(108, 'Phu kien')
+(103, 'Ao khoac')
 ON DUPLICATE KEY UPDATE `CategoryName` = VALUES(`CategoryName`);
 
 INSERT INTO `Product`
@@ -19,14 +15,14 @@ VALUES
 (104, 102, 'So mi linen xanh pastel', 'https://loremflickr.com/800/800/blue,linen,shirt/all?lock=2104', 240000, 110000, 'So mi linen thoang mat, mau xanh diu, phu hop di hoc di lam.', 'Nhu moi', 1, 'active', 15),
 (105, 103, 'Ao khoac denim xanh washed', 'https://loremflickr.com/800/800/denim,jacket/all?lock=2105', 390000, 210000, 'Ao khoac denim dang rong, mau wash dep, con cung form.', 'Tot', 4, 'active', 0),
 (106, 103, 'Blazer oversize mau than', 'https://loremflickr.com/800/800/charcoal,blazer/all?lock=2106', 360000, 170000, 'Blazer oversize toi gian, de phoi voi quan jeans hoac vay.', 'Kha', 1, 'active', 20),
-(107, 104, 'Quan jeans ong dung xanh nhat', 'https://loremflickr.com/800/800/light,blue,jeans/all?lock=2107', 320000, 160000, 'Jeans ong dung cap vua, mau xanh nhat, khong loi vai.', 'Tot', 6, 'active', 0),
-(108, 104, 'Quan kaki be vintage', 'https://loremflickr.com/800/800/beige,chinos/all?lock=2108', 260000, 120000, 'Quan kaki mau be, form suong, phong cach vintage nhe nhang.', 'Nhu moi', 2, 'active', 12),
-(109, 105, 'Dam hoa nhi co vuong', 'https://loremflickr.com/800/800/floral,dress/all?lock=2109', 280000, 130000, 'Dam hoa nhi co vuong, dang xoe nhe, chat vai mem.', 'Nhu moi', 3, 'active', 0),
-(110, 105, 'Chan vay midi den xep ly', 'https://loremflickr.com/800/800/black,pleated,skirt/all?lock=2110', 180000, 80000, 'Chan vay midi xep ly mau den, de phoi ao so mi va ao thun.', 'Tot', 4, 'active', 5),
-(111, 106, 'Tui tote canvas theu logo', 'https://loremflickr.com/800/800/canvas,tote,bag/all?lock=2111', 140000, 60000, 'Tui tote canvas day, co khoa bam, dung di hoc hoac di cho.', 'Nhu moi', 7, 'active', 0),
-(112, 106, 'Tui da deo vai mau nau', 'https://loremflickr.com/800/800/brown,leather,bag/all?lock=2112', 420000, 230000, 'Tui da deo vai mau nau vintage, phu kien kim loai con sang.', 'Kha', 2, 'active', 18),
+(107, 2, 'Quan jeans ong dung xanh nhat', 'https://loremflickr.com/800/800/light,blue,jeans/all?lock=2107', 320000, 160000, 'Jeans ong dung cap vua, mau xanh nhat, khong loi vai.', 'Tot', 6, 'active', 0),
+(108, 2, 'Quan kaki be vintage', 'https://loremflickr.com/800/800/beige,chinos/all?lock=2108', 260000, 120000, 'Quan kaki mau be, form suong, phong cach vintage nhe nhang.', 'Nhu moi', 2, 'active', 12),
+(109, 3, 'Dam hoa nhi co vuong', 'https://loremflickr.com/800/800/floral,dress/all?lock=2109', 280000, 130000, 'Dam hoa nhi co vuong, dang xoe nhe, chat vai mem.', 'Nhu moi', 3, 'active', 0),
+(110, 3, 'Chan vay midi den xep ly', 'https://loremflickr.com/800/800/black,pleated,skirt/all?lock=2110', 180000, 80000, 'Chan vay midi xep ly mau den, de phoi ao so mi va ao thun.', 'Tot', 4, 'active', 5),
+(111, 5, 'Tui tote canvas theu logo', 'https://loremflickr.com/800/800/canvas,tote,bag/all?lock=2111', 140000, 60000, 'Tui tote canvas day, co khoa bam, dung di hoc hoac di cho.', 'Nhu moi', 7, 'active', 0),
+(112, 5, 'Tui da deo vai mau nau', 'https://loremflickr.com/800/800/brown,leather,bag/all?lock=2112', 420000, 230000, 'Tui da deo vai mau nau vintage, phu kien kim loai con sang.', 'Kha', 2, 'active', 18),
 (113, 4, 'Giay sneaker trang toi gian', 'https://loremflickr.com/800/800/white,sneakers/all?lock=2113', 300000, 150000, 'Sneaker trang da ve sinh, size 38, de con tot.', 'Tot', 3, 'active', 0),
-(114, 108, 'That lung da nau co dien', 'https://loremflickr.com/800/800/brown,leather,belt/all?lock=2114', 160000, 70000, 'That lung da nau ban vua, khoa kim loai phong cach co dien.', 'Tot', 5, 'active', 0)
+(114, 6, 'That lung da nau co dien', 'https://loremflickr.com/800/800/brown,leather,belt/all?lock=2114', 160000, 70000, 'That lung da nau ban vua, khoa kim loai phong cach co dien.', 'Tot', 5, 'active', 0)
 ON DUPLICATE KEY UPDATE
 `CategoryID` = VALUES(`CategoryID`),
 `ProductName` = VALUES(`ProductName`),

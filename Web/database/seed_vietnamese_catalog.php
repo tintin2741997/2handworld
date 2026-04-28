@@ -18,10 +18,6 @@ try {
         101 => 'Áo thun secondhand',
         102 => 'Áo sơ mi vintage',
         103 => 'Áo khoác',
-        104 => 'Quần jeans',
-        105 => 'Váy và đầm',
-        106 => 'Túi xách',
-        108 => 'Phụ kiện',
     ];
 
     $categoryStmt = $db->prepare(
@@ -48,14 +44,14 @@ try {
         [104, 102, 'Sơ mi linen xanh pastel', 'https://picsum.photos/seed/2hand-linen-blue/800/800', 240000, 110000, 'Sơ mi linen thoáng mát, màu xanh dịu, phù hợp đi học đi làm.', 'Như mới', 1, 'active', 15],
         [105, 103, 'Áo khoác denim xanh washed', 'https://picsum.photos/seed/2hand-denim-jacket/800/800', 390000, 210000, 'Áo khoác denim dáng rộng, màu wash đẹp, còn cứng form.', 'Tốt', 4, 'active', 0],
         [106, 103, 'Blazer oversize màu than', 'https://picsum.photos/seed/2hand-blazer-charcoal/800/800', 360000, 170000, 'Blazer oversize tối giản, dễ phối với quần jeans hoặc váy.', 'Khá', 1, 'active', 20],
-        [107, 104, 'Quần jeans ống đứng xanh nhạt', 'https://picsum.photos/seed/2hand-jeans-light/800/800', 320000, 160000, 'Jeans ống đứng cạp vừa, màu xanh nhạt, không lỗi vải.', 'Tốt', 6, 'active', 0],
-        [108, 104, 'Quần kaki be vintage', 'https://picsum.photos/seed/2hand-khaki-beige/800/800', 260000, 120000, 'Quần kaki màu be, form suông, phong cách vintage nhẹ nhàng.', 'Như mới', 2, 'active', 12],
-        [109, 105, 'Đầm hoa nhí cổ vuông', 'https://picsum.photos/seed/2hand-floral-dress/800/800', 280000, 130000, 'Đầm hoa nhí cổ vuông, dáng xòe nhẹ, chất vải mềm.', 'Như mới', 3, 'active', 0],
-        [110, 105, 'Chân váy midi đen xếp ly', 'https://picsum.photos/seed/2hand-midi-skirt-black/800/800', 180000, 80000, 'Chân váy midi xếp ly màu đen, dễ phối áo sơ mi và áo thun.', 'Tốt', 4, 'active', 5],
-        [111, 106, 'Túi tote canvas thêu logo', 'https://picsum.photos/seed/2hand-canvas-tote/800/800', 140000, 60000, 'Túi tote canvas dày, có khóa bấm, dùng đi học hoặc đi chợ.', 'Như mới', 7, 'active', 0],
-        [112, 106, 'Túi da đeo vai màu nâu', 'https://picsum.photos/seed/2hand-brown-shoulder-bag/800/800', 420000, 230000, 'Túi da đeo vai màu nâu vintage, phụ kiện kim loại còn sáng.', 'Khá', 2, 'active', 18],
+        [107, 2, 'Quần jeans ống đứng xanh nhạt', 'https://picsum.photos/seed/2hand-jeans-light/800/800', 320000, 160000, 'Jeans ống đứng cạp vừa, màu xanh nhạt, không lỗi vải.', 'Tốt', 6, 'active', 0],
+        [108, 2, 'Quần kaki be vintage', 'https://picsum.photos/seed/2hand-khaki-beige/800/800', 260000, 120000, 'Quần kaki màu be, form suông, phong cách vintage nhẹ nhàng.', 'Như mới', 2, 'active', 12],
+        [109, 3, 'Đầm hoa nhí cổ vuông', 'https://picsum.photos/seed/2hand-floral-dress/800/800', 280000, 130000, 'Đầm hoa nhí cổ vuông, dáng xòe nhẹ, chất vải mềm.', 'Như mới', 3, 'active', 0],
+        [110, 3, 'Chân váy midi đen xếp ly', 'https://picsum.photos/seed/2hand-midi-skirt-black/800/800', 180000, 80000, 'Chân váy midi xếp ly màu đen, dễ phối áo sơ mi và áo thun.', 'Tốt', 4, 'active', 5],
+        [111, 5, 'Túi tote canvas thêu logo', 'https://picsum.photos/seed/2hand-canvas-tote/800/800', 140000, 60000, 'Túi tote canvas dày, có khóa bấm, dùng đi học hoặc đi chợ.', 'Như mới', 7, 'active', 0],
+        [112, 5, 'Túi da đeo vai màu nâu', 'https://picsum.photos/seed/2hand-brown-shoulder-bag/800/800', 420000, 230000, 'Túi da đeo vai màu nâu vintage, phụ kiện kim loại còn sáng.', 'Khá', 2, 'active', 18],
         [113, 4, 'Giày sneaker trắng tối giản', 'https://picsum.photos/seed/2hand-white-sneaker/800/800', 300000, 150000, 'Sneaker trắng đã vệ sinh, size 38, đế còn tốt.', 'Tốt', 3, 'active', 0],
-        [114, 108, 'Thắt lưng da nâu cổ điển', 'https://picsum.photos/seed/2hand-brown-belt/800/800', 160000, 70000, 'Thắt lưng da nâu bản vừa, khóa kim loại phong cách cổ điển.', 'Tốt', 5, 'active', 0],
+        [114, 6, 'Thắt lưng da nâu cổ điển', 'https://picsum.photos/seed/2hand-brown-belt/800/800', 160000, 70000, 'Thắt lưng da nâu bản vừa, khóa kim loại phong cách cổ điển.', 'Tốt', 5, 'active', 0],
     ];
 
     $productStmt = $db->prepare(

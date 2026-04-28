@@ -23,7 +23,7 @@ export function NewsPage() {
   if (slug) {
     if (!selectedArticle) {
       return (
-        <main className="min-h-screen pt-56 md:pt-60 pb-20 bg-background">
+        <main className="min-h-screen pt-28 md:pt-32 pb-20 bg-background">
           <div className="max-w-3xl mx-auto px-4 lg:px-8 text-center">
             <PageBreadcrumb items={[{ label: 'Tin tức', to: '/tin-tuc' }, { label: 'Không tìm thấy bài viết' }]} />
             <h1 className="text-3xl font-serif font-bold text-heading mb-4">
@@ -44,7 +44,7 @@ export function NewsPage() {
     }
 
     return (
-      <main className="min-h-screen pt-56 md:pt-60 pb-20 bg-background">
+      <main className="min-h-screen pt-28 md:pt-32 pb-20 bg-background">
         <article className="max-w-4xl mx-auto px-4 lg:px-8">
           <PageBreadcrumb items={[{ label: 'Tin tức', to: '/tin-tuc' }, { label: selectedArticle.title }]} />
           <Link
@@ -87,7 +87,7 @@ export function NewsPage() {
   }
 
   return (
-    <main className="min-h-screen pt-56 md:pt-60 pb-20 bg-background">
+    <main className="min-h-screen pt-28 md:pt-32 pb-20 bg-background">
       <div className="max-w-7xl mx-auto px-4 lg:px-8">
         <PageBreadcrumb items={[{ label: 'Tin tức' }]} />
         <div className="text-center mb-16">

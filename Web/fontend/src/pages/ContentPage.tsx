@@ -32,7 +32,7 @@ export function ContentPage() {
     isPublished: true
   };
   return (
-    <main className="min-h-screen pt-56 md:pt-60 pb-20 bg-background">
+    <main className="min-h-screen pt-28 md:pt-32 pb-20 bg-background">
       <div className="max-w-4xl mx-auto px-4 lg:px-8">
         <PageBreadcrumb items={[{ label: title }]} />
         <h1 className="text-4xl font-serif font-bold text-heading mb-12 text-center">
