@@ -101,7 +101,7 @@ export function Header() {
           <Link to="/" className="flex items-center space-x-2 group">
             <img src={logo2HandWorld} alt="2HANDWORLD Logo" className="w-20 h-20 object-contain" />
             <span className="font-serif text-xl font-bold text-heading tracking-tight">
-              2HANDWORLD
+              2HAND WORLD
             </span>
           </Link>
 

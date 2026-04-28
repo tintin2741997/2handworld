@@ -84,15 +84,7 @@ export function ProductCard({ product }: ProductCardProps) {
           </h3>
         </Link>
 
-        <p className="text-xs text-muted mb-4 mt-auto">
-          {/* Store name placeholder - in real app we'd lookup store by id */}
-          Chi nhánh{' '}
-          {product.store === 's1' ?
-          'Quận 1' :
-          product.store === 's2' ?
-          'Quận 3' :
-          'Thủ Đức'}
-        </p>
+        <p className="text-xs text-muted mb-4 mt-auto">2HANDWORLD</p>
 
         <div className="flex items-baseline space-x-2 mt-auto pt-3 border-t border-border/50">
           <span className="text-lg font-bold text-primary">

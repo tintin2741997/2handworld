@@ -57,7 +57,7 @@ export function OrderProvider({ children }: { children: ReactNode }) {
 
   const refreshData = useCallback(async () => {
     const [nextProducts, nextOrders, nextCancelRequests] = await Promise.all([
-      api.get<Product[]>('/products?admin=1'),
+      api.get<Product[]>('/products'),
       api.get<Order[]>('/orders').catch(() => []),
       api.get<CancelRequest[]>('/cancel-requests').catch(() => [])
     ]);

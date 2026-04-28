@@ -97,7 +97,7 @@ test.describe('2HANDWORLD buyer website', () => {
       (product) =>
         product.stock > 2 &&
         (product.status || 'active') === 'active' &&
-        !product.name.startsWith('PW Test Product')
+        !product.name.includes('kiểm thử Playwright')
     );
     expect(purchasableProduct, 'demo data should include an active product with stock').toBeTruthy();
 
@@ -161,15 +161,15 @@ test.describe('2HANDWORLD admin', () => {
   test('creates, searches, edits, and hides a product', async ({ page, request }) => {
     const products = await apiData<Product[]>(request, '/products?admin=1');
     const template = products[0];
-    const testName = `PW Test Product ${Date.now()}`;
-    const editedName = `${testName} Edited`;
+    const testName = `Áo thun kiểm thử Playwright ${Date.now()}`;
+    const editedName = `${testName} - đã cập nhật`;
 
     await page.goto('/admin/san-pham');
     await page.locator('button').filter({ hasText: /Th|Add|\+/i }).first().click();
     const modal = page.locator('.fixed').last();
     await modal.locator('input').nth(0).fill(testName);
     await modal.locator('select').first().selectOption(template.category);
-    await modal.locator('input').nth(1).fill('Tot');
+    await modal.locator('input').nth(1).fill('Tốt');
     await modal.locator('input').nth(2).fill('199000');
     await modal.locator('input').nth(3).fill('100000');
     await modal.locator('input').nth(4).fill('5');

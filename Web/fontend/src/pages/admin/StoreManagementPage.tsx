@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+﻿import React, { useEffect, useState } from 'react';
 import {
   PlusIcon,
   EditIcon,
@@ -22,10 +22,10 @@ export function StoreManagementPage() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-serif font-bold text-heading">
-            Quản lý cửa hàng
+            Quáº£n lÃ½ cá»­a hÃ ng
           </h1>
           <p className="text-muted mt-1">
-            Quản lý danh sách chi nhánh và địa chỉ
+            Quáº£n lÃ½ danh sÃ¡ch chi nhÃ¡nh vÃ  Ä‘á»‹a chá»‰
           </p>
         </div>
         <button
@@ -33,7 +33,7 @@ export function StoreManagementPage() {
           className="bg-primary text-white px-4 py-2 rounded-lg font-medium hover:bg-primary-hover transition-colors shadow-warm flex items-center">
           
           <PlusIcon className="w-5 h-5 mr-2" />
-          Thêm chi nhánh
+          ThÃªm chi nhÃ¡nh
         </button>
       </div>
 
@@ -42,11 +42,11 @@ export function StoreManagementPage() {
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="bg-background/50 text-muted text-sm border-b border-border">
-                <th className="p-4 font-medium w-24">Ảnh</th>
-                <th className="p-4 font-medium">Tên chi nhánh</th>
-                <th className="p-4 font-medium">Địa chỉ</th>
-                <th className="p-4 font-medium">Số điện thoại</th>
-                <th className="p-4 font-medium text-center">Thao tác</th>
+                <th className="p-4 font-medium w-24">áº¢nh</th>
+                <th className="p-4 font-medium">TÃªn chi nhÃ¡nh</th>
+                <th className="p-4 font-medium">Äá»‹a chá»‰</th>
+                <th className="p-4 font-medium">Sá»‘ Ä‘iá»‡n thoáº¡i</th>
+                <th className="p-4 font-medium text-center">Thao tÃ¡c</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
@@ -80,14 +80,14 @@ export function StoreManagementPage() {
                       <button
                       onClick={() => setIsModalOpen(true)}
                       className="p-1.5 text-blue-600 hover:bg-blue-50 rounded transition-colors"
-                      title="Sửa">
+                      title="Sá»­a">
                       
                         <EditIcon className="w-4 h-4" />
                       </button>
                       <button
                       onClick={() => setIsDeleteModalOpen(true)}
                       className="p-1.5 text-red-600 hover:bg-red-50 rounded transition-colors"
-                      title="Xóa">
+                      title="XÃ³a">
                       
                         <TrashIcon className="w-4 h-4" />
                       </button>
@@ -121,7 +121,7 @@ export function StoreManagementPage() {
             
               <div className="p-6 border-b border-border flex justify-between items-center">
                 <h2 className="font-serif text-xl font-bold text-heading">
-                  Thêm chi nhánh mới
+                  ThÃªm chi nhÃ¡nh má»›i
                 </h2>
                 <button
                 onClick={() => setIsModalOpen(false)}
@@ -134,44 +134,44 @@ export function StoreManagementPage() {
                 <form className="space-y-4">
                   <div>
                     <label className="block text-sm font-medium text-heading mb-2">
-                      Tên chi nhánh *
+                      TÃªn chi nhÃ¡nh *
                     </label>
                     <input
                     type="text"
                     className="w-full px-4 py-2 rounded-lg border border-border focus:ring-2 focus:ring-primary focus:border-primary outline-none"
-                    placeholder="VD: Chi nhánh Quận 1" />
+                    placeholder="VD: Chi nhÃ¡nh Quáº­n 1" />
                   
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-heading mb-2">
-                      Địa chỉ *
+                      Äá»‹a chá»‰ *
                     </label>
                     <input
                     type="text"
                     className="w-full px-4 py-2 rounded-lg border border-border focus:ring-2 focus:ring-primary focus:border-primary outline-none"
-                    placeholder="Nhập địa chỉ đầy đủ" />
+                    placeholder="Nháº­p Ä‘á»‹a chá»‰ Ä‘áº§y Ä‘á»§" />
                   
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-heading mb-2">
-                      Số điện thoại *
+                      Sá»‘ Ä‘iá»‡n thoáº¡i *
                     </label>
                     <input
                     type="tel"
                     className="w-full px-4 py-2 rounded-lg border border-border focus:ring-2 focus:ring-primary focus:border-primary outline-none"
-                    placeholder="Nhập số điện thoại" />
+                    placeholder="Nháº­p sá»‘ Ä‘iá»‡n thoáº¡i" />
                   
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-heading mb-2">
-                      Hình ảnh
+                      HÃ¬nh áº£nh
                     </label>
                     <div className="border-2 border-dashed border-border rounded-lg p-6 text-center hover:bg-background transition-colors cursor-pointer">
                       <div className="w-10 h-10 bg-primary/10 text-primary rounded-full flex items-center justify-center mx-auto mb-2">
                         <PlusIcon className="w-5 h-5" />
                       </div>
                       <p className="text-sm font-medium text-heading">
-                        Nhấn để tải ảnh lên
+                        Nháº¥n Ä‘á»ƒ táº£i áº£nh lÃªn
                       </p>
                     </div>
                   </div>
@@ -182,13 +182,13 @@ export function StoreManagementPage() {
                 onClick={() => setIsModalOpen(false)}
                 className="px-6 py-2 border border-border rounded-lg font-medium text-heading hover:bg-white transition-colors">
                 
-                  Hủy
+                  Há»§y
                 </button>
                 <button
                 onClick={() => setIsModalOpen(false)}
                 className="px-6 py-2 bg-primary text-white rounded-lg font-medium hover:bg-primary-hover transition-colors shadow-warm">
                 
-                  Lưu
+                  LÆ°u
                 </button>
               </div>
             </motion.div>
@@ -219,23 +219,23 @@ export function StoreManagementPage() {
                 <TrashIcon className="w-8 h-8" />
               </div>
               <h3 className="font-serif text-xl font-bold text-heading mb-2">
-                Xác nhận xóa
+                XÃ¡c nháº­n xÃ³a
               </h3>
               <p className="text-body mb-6">
-                Bạn có chắc chắn muốn xóa chi nhánh này?
+                Báº¡n cÃ³ cháº¯c cháº¯n muá»‘n xÃ³a chi nhÃ¡nh nÃ y?
               </p>
               <div className="flex justify-center space-x-3">
                 <button
                 onClick={() => setIsDeleteModalOpen(false)}
                 className="px-6 py-2 border border-border rounded-lg font-medium text-heading hover:bg-background transition-colors">
                 
-                  Hủy
+                  Há»§y
                 </button>
                 <button
                 onClick={() => setIsDeleteModalOpen(false)}
                 className="px-6 py-2 bg-red-600 text-white rounded-lg font-medium hover:bg-red-700 transition-colors">
                 
-                  Xóa chi nhánh
+                  XÃ³a chi nhÃ¡nh
                 </button>
               </div>
             </motion.div>

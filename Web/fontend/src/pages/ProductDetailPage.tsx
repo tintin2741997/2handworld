@@ -158,7 +158,7 @@ export function ProductDetailPage() {
               <div className="flex items-center text-sm text-muted">
                 <span className="font-medium text-heading mr-2">Cửa hàng:</span>
                 <Link to="#" className="text-primary hover:underline">
-                  Chi nhánh Quận 1
+                  2HANDWORLD
                 </Link>
               </div>
             </div>
