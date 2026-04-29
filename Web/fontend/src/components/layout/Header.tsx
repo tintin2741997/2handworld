@@ -95,10 +95,10 @@ export function Header() {
         </div>
       }
 
-      <div className="max-w-7xl mx-auto px-4 lg:px-6">
-        <div className="flex justify-between items-center">
+      <div className="max-w-[1440px] mx-auto px-4 xl:px-8">
+        <div className="flex items-center gap-4 lg:gap-5">
           {/* Logo */}
-          <Link to="/" className="flex items-center gap-2 group shrink-0">
+          <Link to="/" className="flex items-center gap-2 group shrink-0 mr-2 lg:mr-4">
             <img src={logo2HandWorld} alt="2HANDWORLD Logo" className="w-10 h-10 md:w-12 md:h-12 object-contain" />
             <span className="font-serif text-lg lg:text-xl font-bold text-heading tracking-tight whitespace-nowrap">
               2HAND WORLD
@@ -106,7 +106,7 @@ export function Header() {
           </Link>
 
           {/* Desktop Navigation */}
-          <nav className="hidden md:flex items-center gap-4 lg:gap-6 xl:gap-8">
+          <nav className="hidden md:flex flex-1 items-center justify-center gap-4 lg:gap-5 xl:gap-6 min-w-0">
             {navLinks.map((link) =>
             <Link
               key={link.name}
@@ -119,7 +119,7 @@ export function Header() {
           </nav>
 
           {/* Actions */}
-          <div className="flex items-center gap-3 lg:gap-4">
+          <div className="flex items-center gap-2 lg:gap-3 shrink-0">
             <form
               onSubmit={handleSearch}
               className="hidden lg:flex items-center relative">
@@ -128,8 +128,8 @@ export function Header() {
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Tìm kiếm sản phẩm..."
-                className="pl-10 pr-4 py-2 rounded-full border border-border bg-white focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary w-52 xl:w-64 transition-all" />
+                placeholder="Tìm sản phẩm"
+                className="pl-10 pr-4 py-2 rounded-full border border-border bg-white focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary w-40 xl:w-52 2xl:w-56 transition-all" />
               
               <button
                 type="submit"
@@ -163,7 +163,7 @@ export function Header() {
                   <div className="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold font-serif">
                     {user?.name?.charAt(0) || 'U'}
                   </div>
-                  <span className="hidden md:inline text-sm font-medium truncate max-w-[100px]">
+                  <span className="hidden 2xl:inline text-sm font-medium truncate max-w-[90px]">
                     {user?.name}
                   </span>
                 </button>

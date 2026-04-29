@@ -50,7 +50,7 @@ export function HomePage() {
               Khám phá bộ sưu tập mùa Thu
             </span>
             <h1 className="text-4xl md:text-5xl lg:text-6xl font-serif font-bold text-heading leading-tight mb-6">
-              Thời trang 2HANDWORLD <br />
+              2HAND WORLD <br />
               <span className="text-primary italic">Phong cách bền vững</span>
             </h1>
             {/* <p className="text-lg md:text-xl text-body mb-10 leading-relaxed max-w-xl">

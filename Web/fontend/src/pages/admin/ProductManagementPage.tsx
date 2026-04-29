@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { PlusIcon, SearchIcon, EditIcon, TrashIcon, XIcon } from 'lucide-react';
+import { ClockIcon, PlusIcon, SearchIcon, EditIcon, TrashIcon, XIcon } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Category, Product } from '../../types';
+import { Category, Product, ProductPriceHistory } from '../../types';
 import { useOrder } from '../../contexts/OrderContext';
 import { formatPrice } from '../../utils/formatters';
 import { api } from '../../services/api';
@@ -41,8 +41,11 @@ export function ProductManagementPage() {
   const [selectedCategory, setSelectedCategory] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [deletingProduct, setDeletingProduct] = useState<Product | null>(null);
+  const [historyProduct, setHistoryProduct] = useState<Product | null>(null);
+  const [priceHistory, setPriceHistory] = useState<ProductPriceHistory[]>([]);
   const [form, setForm] = useState<ProductForm>(emptyForm);
 
   useEffect(() => {
@@ -120,6 +123,17 @@ export function ProductManagementPage() {
     await api.delete(`/products/${deletingProduct.id}`);
     await refreshData();
     setIsDeleteModalOpen(false);
+  };
+
+  const openHistoryModal = async (product: Product) => {
+    setHistoryProduct(product);
+    setIsHistoryModalOpen(true);
+    try {
+      const data = await api.get<ProductPriceHistory[]>(`/products/${product.id}/price-history`);
+      setPriceHistory(data);
+    } catch {
+      setPriceHistory([]);
+    }
   };
 
   return (
@@ -229,6 +243,12 @@ export function ProductManagementPage() {
                           className="p-1.5 text-blue-600 hover:bg-blue-50 rounded transition-colors"
                           title="Sửa">
                           <EditIcon className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => openHistoryModal(product)}
+                          className="p-1.5 text-primary hover:bg-primary/10 rounded transition-colors"
+                          title="Lịch sử giá">
+                          <ClockIcon className="w-4 h-4" />
                         </button>
                         <button
                           onClick={() => {
@@ -384,6 +404,70 @@ export function ProductManagementPage() {
                   className="px-6 py-2 bg-primary text-white rounded-lg font-medium hover:bg-primary-hover transition-colors shadow-warm">
                   Lưu sản phẩm
                 </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {isHistoryModalOpen && historyProduct && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="bg-white rounded-xl shadow-warm-lg w-full max-w-2xl max-h-[85vh] overflow-hidden flex flex-col">
+              <div className="p-6 border-b border-border flex justify-between items-start gap-4">
+                <div>
+                  <h2 className="font-serif text-xl font-bold text-heading">
+                    Lịch sử biến động giá
+                  </h2>
+                  <p className="text-sm text-muted mt-1">{historyProduct.name}</p>
+                </div>
+                <button
+                  onClick={() => setIsHistoryModalOpen(false)}
+                  className="text-muted hover:text-heading">
+                  <XIcon className="w-6 h-6" />
+                </button>
+              </div>
+              <div className="p-6 overflow-y-auto">
+                {priceHistory.length === 0 ? (
+                  <p className="text-muted text-sm">
+                    Sản phẩm chưa có lần thay đổi giá nào được ghi nhận.
+                  </p>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full table-fixed text-sm min-w-[640px]">
+                      <thead>
+                        <tr className="text-muted border-b border-border">
+                          <th className="w-[22%] px-3 py-3 text-center font-medium">Ngày cập nhật</th>
+                          <th className="w-[19%] px-3 py-3 text-center font-medium">Giá cũ</th>
+                          <th className="w-[19%] px-3 py-3 text-center font-medium">Giá mới</th>
+                          <th className="w-[20%] px-3 py-3 text-center font-medium">Chênh lệch</th>
+                          <th className="w-[20%] px-3 py-3 text-center font-medium">Người sửa</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-border">
+                        {priceHistory.slice().reverse().map((entry) => (
+                          <tr key={entry.id}>
+                            <td className="px-3 py-3 text-center text-body">
+                              {new Date(entry.changedAt.replace(' ', 'T')).toLocaleDateString('vi-VN')}
+                            </td>
+                            <td className="px-3 py-3 text-center">{formatPrice(entry.oldPrice)}</td>
+                            <td className="px-3 py-3 text-center font-medium text-heading">
+                              {formatPrice(entry.newPrice)}
+                            </td>
+                            <td className={`px-3 py-3 text-center font-medium ${entry.difference < 0 ? 'text-success' : 'text-sale'}`}>
+                              {entry.difference < 0 ? '-' : '+'}{formatPrice(Math.abs(entry.difference))}
+                            </td>
+                            <td className="px-3 py-3 text-center text-body">{entry.changedByName || '-'}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
               </div>
             </motion.div>
           </div>

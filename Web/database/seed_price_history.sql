@@ -1,0 +1,18 @@
+USE `2handworld_schema`;
+
+INSERT INTO `ProductPriceHistory`
+(`HistoryID`, `ProductID`, `OldPrice`, `NewPrice`, `ChangedBy`, `ChangedAt`)
+VALUES
+(1001, 1, 290000, 270000, 1, '2026-03-10 09:00:00'),
+(1002, 1, 270000, 250000, 1, '2026-04-05 10:30:00'),
+(1003, 2, 420000, 380000, 1, '2026-03-12 14:20:00'),
+(1004, 2, 380000, 350000, 1, '2026-04-08 11:15:00'),
+(1005, 3, 250000, 220000, 1, '2026-04-01 16:45:00'),
+(1006, 4, 390000, 450000, 1, '2026-04-14 08:35:00'),
+(1007, 107, 350000, 320000, 1, '2026-04-18 15:10:00'),
+(1008, 109, 320000, 280000, 1, '2026-04-19 09:25:00')
+ON DUPLICATE KEY UPDATE
+`OldPrice` = VALUES(`OldPrice`),
+`NewPrice` = VALUES(`NewPrice`),
+`ChangedBy` = VALUES(`ChangedBy`),
+`ChangedAt` = VALUES(`ChangedAt`);

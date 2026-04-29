@@ -427,6 +427,45 @@ function product_update(string $id): void
     }
 }
 
+function product_price_history(string $id): void
+{
+    $productId = int_id($id, 'p');
+    $product = db()->prepare('SELECT ProductID FROM `Product` WHERE ProductID = ? AND ProductStatus != "hidden"');
+    $product->execute([$productId]);
+    if (!$product->fetch()) {
+        error_response('Không tìm thấy sản phẩm.', 404);
+    }
+
+    $stmt = db()->prepare(
+        'SELECT h.HistoryID, h.ProductID, h.OldPrice, h.NewPrice, h.ChangedAt, h.ChangedBy, u.Username AS ChangedByName
+         FROM `ProductPriceHistory` h
+         LEFT JOIN `Users` u ON u.UserID = h.ChangedBy
+         WHERE h.ProductID = ?
+         ORDER BY h.ChangedAt ASC, h.HistoryID ASC'
+    );
+    $stmt->execute([$productId]);
+
+    $data = array_map(static function (array $row): array {
+        $oldPrice = (int) $row['OldPrice'];
+        $newPrice = (int) $row['NewPrice'];
+        $difference = $newPrice - $oldPrice;
+
+        return [
+            'id' => 'ph' . $row['HistoryID'],
+            'productId' => 'p' . $row['ProductID'],
+            'oldPrice' => $oldPrice,
+            'newPrice' => $newPrice,
+            'difference' => $difference,
+            'changePercent' => round(($difference / $oldPrice) * 100, 1),
+            'changedBy' => $row['ChangedBy'] ? 'u' . $row['ChangedBy'] : null,
+            'changedByName' => $row['ChangedByName'] ?? null,
+            'changedAt' => $row['ChangedAt'],
+        ];
+    }, $stmt->fetchAll());
+
+    json_response(['success' => true, 'data' => $data]);
+}
+
 function product_delete(string $id): void
 {
     require_admin();
@@ -883,7 +922,12 @@ function cancel_request_process(string $id): void
 function review_list(): void
 {
     $productId = !empty($_GET['productId']) ? int_id($_GET['productId'], 'p') : null;
-    $where = ['r.Status = "active"'];
+    $isAdminView = isset($_GET['admin']) && $_GET['admin'] === '1';
+    if ($isAdminView) {
+        require_admin();
+    }
+
+    $where = $isAdminView ? ['1=1'] : ['r.Status = "active"'];
     $params = [];
     if ($productId) {
         $where[] = 'r.ProductID = ?';
@@ -922,7 +966,11 @@ function review_status(string $id): void
 {
     require_admin();
     $data = body();
-    db()->prepare('UPDATE `Review` SET Status = ? WHERE ReviewID = ?')->execute([$data['status'] ?? 'hidden', int_id($id, 'r')]);
+    $status = (string) ($data['status'] ?? 'hidden');
+    if (!in_array($status, ['active', 'hidden'], true)) {
+        error_response('Trạng thái đánh giá không hợp lệ.', 422);
+    }
+    db()->prepare('UPDATE `Review` SET Status = ? WHERE ReviewID = ?')->execute([$status, int_id($id, 'r')]);
     json_response(['success' => true]);
 }
 
@@ -1010,19 +1058,42 @@ function report_dashboard(): void
 function report_revenue(): void
 {
     require_admin();
+    $range = ($_GET['range'] ?? 'month') === 'day' ? 'day' : 'month';
+    $periodExpression = $range === 'day'
+        ? "DATE_FORMAT(o.OrderDate, '%d/%m')"
+        : "DATE_FORMAT(o.OrderDate, '%m/%Y')";
+    $groupExpression = $range === 'day'
+        ? "DATE(o.OrderDate)"
+        : "DATE_FORMAT(o.OrderDate, '%Y-%m')";
+
     $stmt = db()->query(
-        "SELECT DATE_FORMAT(o.OrderDate, '%Y-%m') AS month,
-                SUM(o.TotalAmount) AS revenue,
-                SUM((od.Price - p.ImportPrice) * od.Quantity) AS profit,
-                COUNT(DISTINCT o.OrderID) AS orderCount
-         FROM `Order` o
-         JOIN `OrderDetail` od ON od.OrderID = o.OrderID
-         JOIN `Product` p ON p.ProductID = od.ProductID
-         WHERE o.Status = 'Hoàn thành'
-         GROUP BY DATE_FORMAT(o.OrderDate, '%Y-%m')
-         ORDER BY month ASC"
+        "SELECT report.month,
+                COALESCE(SUM(report.revenue), 0) AS revenue,
+                COALESCE(SUM(report.profit), 0) AS profit,
+                COUNT(*) AS orderCount
+         FROM (
+             SELECT o.OrderID,
+                    {$periodExpression} AS month,
+                    {$groupExpression} AS sortPeriod,
+                    o.TotalAmount AS revenue,
+                    COALESCE(SUM((od.Price - p.ImportPrice) * od.Quantity), 0) AS profit
+             FROM `Order` o
+             JOIN `OrderDetail` od ON od.OrderID = o.OrderID
+             JOIN `Product` p ON p.ProductID = od.ProductID
+             WHERE o.Status = 'Hoàn thành'
+             GROUP BY o.OrderID, o.TotalAmount, {$groupExpression}, {$periodExpression}
+         ) report
+         GROUP BY report.sortPeriod, report.month
+         ORDER BY report.sortPeriod ASC"
     );
-    json_response(['success' => true, 'data' => $stmt->fetchAll()]);
+    $data = array_map(static fn(array $row): array => [
+        'month' => $row['month'],
+        'revenue' => (int) $row['revenue'],
+        'profit' => (int) $row['profit'],
+        'orderCount' => (int) $row['orderCount'],
+    ], $stmt->fetchAll());
+
+    json_response(['success' => true, 'data' => $data]);
 }
 
 function report_categories(): void
@@ -1196,6 +1267,7 @@ try {
 
         ['GET', 'products', null, null] => product_list(),
         ['POST', 'products', null, null] => product_create(),
+        ['GET', 'products', $segments[1] ?? '', 'price-history'] => product_price_history($segments[1]),
         ['GET', 'products', $segments[1] ?? '', null] => product_detail($segments[1]),
         ['PUT', 'products', $segments[1] ?? '', null] => product_update($segments[1]),
         ['PATCH', 'products', $segments[1] ?? '', null] => product_update($segments[1]),

@@ -146,10 +146,10 @@ export function ContentPage() {
                   đều có một câu chuyện riêng và xứng đáng được yêu thương thêm
                   một lần nữa.
                 </p>
-                <img
+                {/* <img
               src={content.image}
               alt="About us"
-              className="w-full rounded-xl my-8 object-cover h-64" />
+              className="w-full rounded-xl my-8 object-cover h-64" /> */}
             
                 <h3 className="text-xl font-serif font-bold text-heading mt-8 mb-4">
                   Giá trị cốt lõi

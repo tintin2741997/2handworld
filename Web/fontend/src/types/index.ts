@@ -37,6 +37,18 @@ export interface Product {
   createdAt: string;
 }
 
+export interface ProductPriceHistory {
+  id: string;
+  productId: string;
+  oldPrice: number;
+  newPrice: number;
+  difference: number;
+  changePercent: number;
+  changedBy?: string | null;
+  changedByName?: string | null;
+  changedAt: string;
+}
+
 export interface CartItem {
   product: Product;
   quantity: number;
@@ -48,6 +60,7 @@ export interface Review {
   userName: string;
   rating: number;
   comment: string;
+  status?: 'active' | 'hidden';
   createdAt: string;
 }
 

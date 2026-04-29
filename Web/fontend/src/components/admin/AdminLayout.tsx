@@ -95,7 +95,7 @@ export function AdminLayout() {
               <LeafIcon className="w-6 h-6" />
             </div>
             <span className="font-serif text-2xl font-bold text-white tracking-tight">
-              2HAND<span className="text-primary">.</span>
+              2HAND WORLD<span className="text-primary"></span>
             </span>
             <span className="ml-2 px-2 py-0.5 bg-primary/20 text-primary text-xs font-bold rounded uppercase tracking-wider">
               Admin

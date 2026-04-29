@@ -13,7 +13,7 @@ export function Footer() {
                 <LeafIcon className="w-5 h-5" />
               </div>
               <span className="font-serif text-2xl font-bold text-white tracking-tight">
-                2HAND<span className="text-primary">.</span>
+                2HAND WORLD<span className="text-primary"></span>
               </span>
             </Link>
             <p className="text-[#8B7355] leading-relaxed mb-6">
@@ -116,7 +116,7 @@ export function Footer() {
 
         <div className="border-t border-[#4A3728] pt-8 flex flex-col md:flex-row justify-between items-center">
           <p className="text-[#8B7355] text-sm mb-4 md:mb-0">
-            &copy; {new Date().getFullYear()} 2HAND Store. Tất cả quyền được bảo
+            &copy; {new Date().getFullYear()} 2HAND WORLD. Tất cả quyền được bảo
             lưu.
           </p>
           <div className="flex space-x-4">
