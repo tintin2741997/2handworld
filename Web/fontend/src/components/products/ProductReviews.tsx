@@ -48,6 +48,8 @@ export function ProductReviews({
 
     );
   };
+  const filteredReviews = activeTab === 'all' ? reviews : reviews.filter((r) => r.rating === parseInt(activeTab, 10));
+
   return (
     <div className="bg-white rounded-xl p-6 md:p-8 shadow-warm border border-border/50">
       <h2 className="font-serif text-2xl font-bold text-heading mb-8">
@@ -101,31 +103,37 @@ export function ProductReviews({
 
       {/* Review List */}
       <div className="space-y-6">
-        {reviews.map((review) =>
-        <div
-          key={review.id}
-          className="pb-6 border-b border-border last:border-0 last:pb-0">
-          
-            <div className="flex items-start justify-between mb-2">
-              <div className="flex items-center space-x-3">
-                <div className="w-10 h-10 rounded-full bg-background flex items-center justify-center text-primary font-bold font-serif">
-                  {review.userName.charAt(0)}
-                </div>
-                <div>
-                  <div className="font-medium text-heading">
-                    {review.userName}
-                  </div>
-                  <div className="flex items-center mt-1">
-                    {renderStars(review.rating)}
-                  </div>
-                </div>
-              </div>
-              <div className="text-sm text-muted">
-                {new Date(review.createdAt).toLocaleDateString('vi-VN')}
-              </div>
-            </div>
-            <p className="text-body mt-3 leading-relaxed">{review.comment}</p>
+        {filteredReviews.length === 0 ? (
+          <div className="text-center py-12 bg-background rounded-xl border border-dashed border-border/60">
+            <p className="text-muted text-sm">Chưa có đánh giá nào phù hợp.</p>
           </div>
+        ) : (
+          filteredReviews.map((review) =>
+          <div
+            key={review.id}
+            className="pb-6 border-b border-border last:border-0 last:pb-0">
+            
+              <div className="flex items-start justify-between mb-2">
+                <div className="flex items-center space-x-3">
+                  <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold font-serif">
+                    {review.userName.charAt(0)}
+                  </div>
+                  <div>
+                    <div className="font-medium text-heading">
+                      {review.userName}
+                    </div>
+                    <div className="flex items-center mt-1">
+                      {renderStars(review.rating)}
+                    </div>
+                  </div>
+                </div>
+                <div className="text-sm text-muted">
+                  {new Date(review.createdAt).toLocaleDateString('vi-VN')}
+                </div>
+              </div>
+              <p className="text-body mt-3 leading-relaxed">{review.comment}</p>
+            </div>
+          )
         )}
       </div>
 

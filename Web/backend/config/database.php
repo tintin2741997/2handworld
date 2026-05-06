@@ -13,7 +13,7 @@ final class Database
         }
 
         $host = getenv('DB_HOST') ?: '127.0.0.1';
-        $port = getenv('DB_PORT') ?: '3306';
+        $port = getenv('DB_PORT') ?: '3307';
         $database = getenv('DB_DATABASE') ?: '2handworld_schema';
         $username = getenv('DB_USERNAME') ?: 'root';
         $password = getenv('DB_PASSWORD') ?: '';

@@ -722,6 +722,13 @@ function order_create(): void
         foreach ($orderItems as $item) {
             db()->prepare('INSERT INTO `OrderDetail` (OrderID, ProductID, Quantity, Price) VALUES (?, ?, ?, ?)')
                 ->execute([$orderId, $item['id'], $item['quantity'], $item['price']]);
+            
+            db()->prepare('UPDATE `Inventory` SET StockQuantity = StockQuantity - ? WHERE ProductID = ?')
+                ->execute([$item['quantity'], $item['id']]);
+            db()->prepare('INSERT INTO `InventoryLog` (ProductID, OrderID, ChangeQuantity, Reason) VALUES (?, ?, ?, ?)')
+                ->execute([$item['id'], $orderId, -$item['quantity'], 'Xuất bán']);
+            db()->prepare('UPDATE `Product` SET SoldQuantity = SoldQuantity + ? WHERE ProductID = ?')
+                ->execute([$item['quantity'], $item['id']]);
         }
 
         $method = method_name((string) $data['paymentMethod']);
@@ -804,10 +811,8 @@ function order_status(string $id): void
         $oldStatus = (string) $order['Status'];
 
         db()->prepare('UPDATE `Order` SET Status = ? WHERE OrderID = ?')->execute([$newStatus, $orderId]);
-        if ($newStatus === 'Đã xác nhận' && $oldStatus === 'Chưa xác nhận') {
-            inventory_for_order($orderId, -1, 'Xuất bán');
-        } elseif (in_array($newStatus, ['Đã hủy', 'Giao thất bại', 'Đã trả về cửa hàng'], true)
-            && in_array($oldStatus, ['Đã xác nhận', 'Đang giao'], true)) {
+        if (in_array($newStatus, ['Đã hủy', 'Giao thất bại', 'Đã trả về cửa hàng', 'Bị từ chối'], true)
+            && !in_array($oldStatus, ['Đã hủy', 'Giao thất bại', 'Đã trả về cửa hàng', 'Bị từ chối'], true)) {
             inventory_for_order($orderId, 1, 'Hoàn hàng');
         }
         db()->commit();
