@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import {
   ChevronRightIcon,
   StarIcon,
@@ -18,22 +18,29 @@ import { formatPrice } from '../utils/formatters';
 import { ProductReviews } from '../components/products/ProductReviews';
 import { ProductCard } from '../components/products/ProductCard';
 import { ProductPriceHistory, Review } from '../types';
-import { api } from '../services/api';
+import { ApiError, api } from '../services/api';
 
 const formatDate = (value: string) =>
   new Date(value.replace(' ', 'T')).toLocaleDateString('vi-VN');
 
 export function ProductDetailPage() {
   const { id } = useParams();
-  const { addToCart } = useCart();
+  const navigate = useNavigate();
+  const { addToCart, cartItems } = useCart();
   const { products } = useOrder();
   const [reviews, setReviews] = useState<Review[]>([]);
   const [priceHistory, setPriceHistory] = useState<ProductPriceHistory[]>([]);
   const [quantity, setQuantity] = useState(1);
+  const [cartError, setCartError] = useState('');
   const [activeTab, setActiveTab] = useState('description');
   const [selectedImage, setSelectedImage] = useState(0);
   // In a real app, fetch product by id. Using mock data here.
   const product = products.find((p) => p.id === id) || products[0];
+  const cartQuantity = product
+    ? cartItems.find((item) => item.product.id === product.id)?.quantity || 0
+    : 0;
+  const remainingStock = product ? Math.max(0, product.stock - cartQuantity) : 0;
+  const maxSelectableQuantity = Math.max(1, remainingStock);
   const relatedProducts = product ? products.
   filter((p) => p.category === product.category && p.id !== product.id).
   slice(0, 4) : [];
@@ -50,6 +57,13 @@ export function ProductDetailPage() {
         .catch(() => setPriceHistory([]));
     }
   }, [product?.id]);
+  useEffect(() => {
+    if (!product) {
+      return;
+    }
+    setQuantity((current) => Math.min(Math.max(1, current), maxSelectableQuantity));
+    setCartError('');
+  }, [product?.id, maxSelectableQuantity]);
   if (!product) {
     return (
       <main className="min-h-screen pt-28 md:pt-32 pb-20 flex items-center justify-center">
@@ -59,13 +73,36 @@ export function ProductDetailPage() {
   }
   const handleQuantityChange = (delta: number) => {
     const newQuantity = quantity + delta;
-    if (newQuantity >= 1 && newQuantity <= product.stock) {
+    if (newQuantity >= 1 && newQuantity <= maxSelectableQuantity) {
       setQuantity(newQuantity);
     }
   };
-  const handleAddToCart = () => {
-    addToCart(product, quantity);
-    // Could add a toast notification here
+  const handleAddToCart = async () => {
+    setCartError('');
+    if (remainingStock <= 0) {
+      setCartError('Sản phẩm này đã đạt số lượng tối đa trong giỏ hàng.');
+      return false;
+    }
+    if (quantity > remainingStock) {
+      setCartError(`Bạn chỉ có thể thêm tối đa ${remainingStock} sản phẩm nữa.`);
+      return false;
+    }
+    try {
+      await addToCart(product, quantity);
+      return true;
+    } catch (error) {
+      setCartError(
+        error instanceof ApiError
+          ? error.message
+          : 'Không thể thêm sản phẩm vào giỏ hàng.'
+      );
+      return false;
+    }
+  };
+  const handleBuyNow = async () => {
+    if (await handleAddToCart()) {
+      navigate('/thanh-toan');
+    }
   };
   const pricePoints =
     priceHistory.length > 0
@@ -203,32 +240,39 @@ export function ProductDetailPage() {
                   </span>
                   <button
                     onClick={() => handleQuantityChange(1)}
-                    disabled={quantity >= product.stock}
+                    disabled={quantity >= maxSelectableQuantity || remainingStock <= 0}
                     className="p-2 text-muted hover:text-primary disabled:opacity-50 transition-colors">
                     
                     <PlusIcon className="w-5 h-5" />
                   </button>
                 </div>
                 <span className="text-sm text-muted ml-2">
-                  {product.stock} sản phẩm có sẵn
+                  {remainingStock} sản phẩm có thể thêm
+                  {cartQuantity > 0 ? ` (${cartQuantity} đã có trong giỏ)` : ''}
                 </span>
               </div>
+
+              {cartError &&
+              <p className="text-sm text-sale mb-4">{cartError}</p>
+              }
 
               <div className="flex gap-4">
                 <button
                   onClick={handleAddToCart}
-                  className="flex-1 bg-white border-2 border-primary text-primary font-semibold py-4 rounded-xl hover:bg-primary/5 transition-colors flex items-center justify-center gap-2">
+                  disabled={remainingStock <= 0}
+                  className="flex-1 bg-white border-2 border-primary text-primary font-semibold py-4 rounded-xl hover:bg-primary/5 transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
                   
                   <ShoppingCartIcon className="w-5 h-5" />
                   Thêm vào giỏ
                 </button>
-                <Link
-                  to="/thanh-toan"
-                  onClick={handleAddToCart}
-                  className="flex-1 bg-primary text-white font-semibold py-4 rounded-xl hover:bg-primary-hover transition-colors shadow-warm hover:shadow-warm-lg text-center">
+                <button
+                  type="button"
+                  onClick={handleBuyNow}
+                  disabled={remainingStock <= 0}
+                  className={`flex-1 bg-primary text-white font-semibold py-4 rounded-xl transition-colors shadow-warm hover:shadow-warm-lg text-center ${remainingStock <= 0 ? 'opacity-50 cursor-not-allowed' : 'hover:bg-primary-hover'}`}>
                   
                   Mua ngay
-                </Link>
+                </button>
               </div>
             </div>
 

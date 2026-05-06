@@ -241,7 +241,7 @@ function order_row(array $order): array
     $payment->execute([(int) $order['OrderID']]);
     $paymentRow = $payment->fetch() ?: ['Status' => 'Chưa thanh toán', 'MethodName' => 'COD'];
 
-    return [
+    $row = [
         'id' => 'o' . $order['OrderID'],
         'orderNumber' => 'ORD-' . date('Ymd', strtotime((string) $order['OrderDate'])) . '-' . str_pad((string) $order['OrderID'], 4, '0', STR_PAD_LEFT),
         'userId' => $order['UserID'] ? 'u' . $order['UserID'] : null,
@@ -265,6 +265,50 @@ function order_row(array $order): array
         'createdAt' => $order['CreatedAt'],
         'updatedAt' => $order['UpdatedAt'],
     ];
+
+    if (current_user_role() === 'admin') {
+        $risk = db()->prepare(
+            'SELECT Reason FROM `Blacklist` WHERE PhoneNumber = ? OR UserID = ? ORDER BY CreatedAt DESC LIMIT 1'
+        );
+        $risk->execute([$order['PhoneNumber'] ?? '', $order['UserID'] ?? 0]);
+        if ($riskRow = $risk->fetch()) {
+            $row['riskWarning'] = [
+                'type' => 'blacklist',
+                'message' => 'Thông tin đặt hàng nằm trong blacklist. Admin cần kiểm tra trước khi xử lý.',
+                'reason' => $riskRow['Reason'] ?? null,
+            ];
+        }
+    }
+
+    if (current_user_role() === 'admin' && empty($row['riskWarning'])) {
+        $risk = db()->prepare(
+            "SELECT
+                b.Reason,
+                u.Status AS UserStatus
+             FROM (SELECT ? AS PhoneNumber, ? AS UserID) x
+             LEFT JOIN `Users` u ON u.UserID = x.UserID
+             LEFT JOIN `Blacklist` b ON b.BlacklistID = (
+                 SELECT b2.BlacklistID
+                 FROM `Blacklist` b2
+                 WHERE b2.PhoneNumber = x.PhoneNumber OR b2.UserID = x.UserID
+                 ORDER BY b2.CreatedAt DESC, b2.BlacklistID DESC
+                 LIMIT 1
+             )
+             LIMIT 1"
+        );
+        $risk->execute([$order['PhoneNumber'] ?? '', $order['UserID'] ?? 0]);
+        $riskRow = $risk->fetch();
+        $isBlacklistedUser = strtolower((string) ($riskRow['UserStatus'] ?? '')) === 'blacklist';
+        if ($riskRow && ($riskRow['Reason'] || $isBlacklistedUser)) {
+            $row['riskWarning'] = [
+                'type' => 'blacklist',
+                'message' => 'Thông tin đặt hàng nằm trong blacklist. Admin cần kiểm tra trước khi xử lý.',
+                'reason' => $riskRow['Reason'] ?: 'Tài khoản đang ở trạng thái Blacklist.',
+            ];
+        }
+    }
+
+    return $row;
 }
 
 function product_list(): void
@@ -678,7 +722,7 @@ function order_create(): void
         'SELECT BlacklistID FROM `Blacklist` WHERE PhoneNumber = ? OR UserID = ? LIMIT 1'
     );
     $blacklist->execute([$shipping['phone'], current_user_id()]);
-    if ($blacklist->fetch()) {
+    if (false && $blacklist->fetch()) {
         error_response('Thông tin đặt hàng đang nằm trong blacklist. Admin cần kiểm tra trước khi xử lý.', 403);
     }
 
@@ -750,7 +794,9 @@ function order_create(): void
         $created->execute([$orderId]);
         json_response(['success' => true, 'data' => order_row($created->fetch())], 201);
     } catch (Throwable $exception) {
-        db()->rollBack();
+        if (db()->inTransaction()) {
+            db()->rollBack();
+        }
         error_response($exception->getMessage(), 422);
     }
 }
@@ -1217,6 +1263,23 @@ function cart_get(): void
     json_response(['success' => true, 'data' => $items]);
 }
 
+function cart_product_stock(int $productId): int
+{
+    $stmt = db()->prepare(
+        'SELECT COALESCE(i.StockQuantity, 0) AS StockQuantity
+         FROM `Product` p
+         LEFT JOIN `Inventory` i ON i.ProductID = p.ProductID
+         WHERE p.ProductID = ? AND p.ProductStatus = "active"
+         LIMIT 1'
+    );
+    $stmt->execute([$productId]);
+    $row = $stmt->fetch();
+    if (!$row) {
+        error_response('Sản phẩm không tồn tại hoặc không còn được bán.', 404);
+    }
+    return (int) $row['StockQuantity'];
+}
+
 function cart_add(): void
 {
     $data = body();
@@ -1224,10 +1287,22 @@ function cart_add(): void
     $cartId = cart_id();
     $productId = int_id($data['productId'], 'p');
     $quantity = max(1, (int) ($data['quantity'] ?? 1));
-    $existing = db()->prepare('SELECT CartItemsID FROM `CartItems` WHERE CartID = ? AND ProductID = ?');
+    $stock = cart_product_stock($productId);
+    $existing = db()->prepare('SELECT CartItemsID, Quantity FROM `CartItems` WHERE CartID = ? AND ProductID = ?');
     $existing->execute([$cartId, $productId]);
-    if ($row = $existing->fetch()) {
-        db()->prepare('UPDATE `CartItems` SET Quantity = Quantity + ? WHERE CartItemsID = ?')->execute([$quantity, (int) $row['CartItemsID']]);
+    $row = $existing->fetch();
+    $currentQuantity = $row ? (int) $row['Quantity'] : 0;
+    $nextQuantity = $currentQuantity + $quantity;
+    if ($nextQuantity > $stock) {
+        error_response('Số lượng trong giỏ hàng vượt quá tồn kho hiện có.', 422, [
+            'stock' => $stock,
+            'currentQuantity' => $currentQuantity,
+            'remainingQuantity' => max(0, $stock - $currentQuantity),
+        ]);
+    }
+
+    if ($row) {
+        db()->prepare('UPDATE `CartItems` SET Quantity = ? WHERE CartItemsID = ?')->execute([$nextQuantity, (int) $row['CartItemsID']]);
     } else {
         db()->prepare('INSERT INTO `CartItems` (CartID, ProductID, Quantity) VALUES (?, ?, ?)')->execute([$cartId, $productId, $quantity]);
     }
@@ -1243,6 +1318,13 @@ function cart_update(string $productIdValue): void
     if ($quantity <= 0) {
         db()->prepare('DELETE FROM `CartItems` WHERE CartID = ? AND ProductID = ?')->execute([$cartId, $productId]);
     } else {
+        $stock = cart_product_stock($productId);
+        if ($quantity > $stock) {
+            error_response('Số lượng trong giỏ hàng vượt quá tồn kho hiện có.', 422, [
+                'stock' => $stock,
+                'requestedQuantity' => $quantity,
+            ]);
+        }
         db()->prepare('UPDATE `CartItems` SET Quantity = ? WHERE CartID = ? AND ProductID = ?')->execute([$quantity, $cartId, $productId]);
     }
     cart_get();

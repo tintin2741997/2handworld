@@ -9,6 +9,7 @@ export default defineConfig({
   fullyParallel: false,
   retries: 0,
   reporter: [
+    ['./tests/e2e/reporters/status-reporter.ts'],
     ['list'],
     ['html', { open: 'never' }]
   ],

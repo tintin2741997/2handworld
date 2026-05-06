@@ -119,9 +119,11 @@ export function CartPage() {
                         </span>
                         <button
                         onClick={() =>
+                        item.quantity < item.product.stock &&
                         updateQuantity(item.product.id, item.quantity + 1)
                         }
-                        className="p-2 text-muted hover:text-primary">
+                        disabled={item.quantity >= item.product.stock}
+                        className="p-2 text-muted hover:text-primary disabled:opacity-50 disabled:cursor-not-allowed">
                         
                           <PlusIcon className="w-4 h-4" />
                         </button>
@@ -154,9 +156,11 @@ export function CartPage() {
                         </span>
                         <button
                         onClick={() =>
+                        item.quantity < item.product.stock &&
                         updateQuantity(item.product.id, item.quantity + 1)
                         }
-                        className="p-2 text-muted hover:text-primary">
+                        disabled={item.quantity >= item.product.stock}
+                        className="p-2 text-muted hover:text-primary disabled:opacity-50 disabled:cursor-not-allowed">
                         
                           <PlusIcon className="w-4 h-4" />
                         </button>

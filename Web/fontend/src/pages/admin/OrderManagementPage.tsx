@@ -420,7 +420,25 @@ export function OrderManagementPage() {
 
               <div className="p-6 space-y-6 flex-1">
                 {/* RISK CONTROL ALERTS */}
-                {orderUser?.status === 'blacklisted' &&
+                {selectedOrder.riskWarning?.type === 'blacklist' &&
+              <div className="bg-red-50 border border-red-200 rounded-xl p-4 flex items-start">
+                    <AlertTriangleIcon className="w-5 h-5 text-red-600 mt-0.5 mr-3 flex-shrink-0" />
+                    <div>
+                      <h4 className="font-bold text-red-800">
+                        CẢNH BÁO RỦI RO
+                      </h4>
+                      <p className="text-sm text-red-700 mt-1">
+                        {selectedOrder.riskWarning.message}
+                      </p>
+                      {selectedOrder.riskWarning.reason &&
+                    <p className="text-sm text-red-700 mt-1">
+                          Lý do: {selectedOrder.riskWarning.reason}
+                        </p>
+                    }
+                    </div>
+                  </div>
+              }
+                {!selectedOrder.riskWarning && orderUser?.status === 'blacklisted' &&
               <div className="bg-red-50 border border-red-200 rounded-xl p-4 flex items-start">
                     <AlertTriangleIcon className="w-5 h-5 text-red-600 mt-0.5 mr-3 flex-shrink-0" />
                     <div>

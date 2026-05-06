@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Link, useLocation, Outlet } from 'react-router-dom';
+import { Link, useLocation, Outlet, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboardIcon,
   PackageIcon,
@@ -20,6 +20,7 @@ import {
 import { useAuth } from '../../contexts/AuthContext';
 export function AdminLayout() {
   const location = useLocation();
+  const navigate = useNavigate();
   const { user, logout } = useAuth();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const navItems = [
@@ -75,6 +76,12 @@ export function AdminLayout() {
   }];
 
   const toggleMobileMenu = () => setIsMobileMenuOpen(!isMobileMenuOpen);
+  const handleLogout = async () => {
+    await logout();
+    setIsMobileMenuOpen(false);
+    navigate('/dang-nhap');
+  };
+
   return (
     <div className="flex h-screen bg-background overflow-hidden">
       {/* Mobile Sidebar Overlay */}
@@ -155,7 +162,7 @@ export function AdminLayout() {
               Về trang chủ
             </Link>
             <button
-              onClick={logout}
+              onClick={handleLogout}
               className="w-full flex items-center px-3 py-2 text-sm text-sale hover:text-red-400 transition-colors rounded-lg hover:bg-white/5">
               
               <LogOutIcon className="w-4 h-4 mr-3" />

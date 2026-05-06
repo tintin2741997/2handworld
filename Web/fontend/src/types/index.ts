@@ -111,6 +111,11 @@ export interface Order {
   totalAmount: number;
   shippingFee: number;
   note: string;
+  riskWarning?: {
+    type: 'blacklist';
+    message: string;
+    reason?: string | null;
+  };
   createdAt: string;
   updatedAt: string;
 }
