@@ -1,6 +1,6 @@
 const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL ||
-  'http://127.0.0.1/2handworld/Web/backend/api';
+  'http://localhost/2handworld/Web/backend/api';
 
 type ApiResponse<T> = {
   success: boolean;
