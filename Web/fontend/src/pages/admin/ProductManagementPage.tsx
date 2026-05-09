@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from 'react';
-import { ClockIcon, PlusIcon, SearchIcon, EditIcon, TrashIcon, XIcon } from 'lucide-react';
+import React, { useCallback, useEffect, useState } from 'react';
+import { ClockIcon, EyeIcon, EyeOffIcon, PlusIcon, SearchIcon, EditIcon, XIcon } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Category, Product, ProductPriceHistory } from '../../types';
 import { useOrder } from '../../contexts/OrderContext';
@@ -36,14 +36,15 @@ const emptyForm: ProductForm = {
 
 export function ProductManagementPage() {
   const { products, refreshData } = useOrder();
+  const [adminProducts, setAdminProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [isVisibilityModalOpen, setIsVisibilityModalOpen] = useState(false);
   const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
-  const [deletingProduct, setDeletingProduct] = useState<Product | null>(null);
+  const [visibilityProduct, setVisibilityProduct] = useState<Product | null>(null);
   const [historyProduct, setHistoryProduct] = useState<Product | null>(null);
   const [priceHistory, setPriceHistory] = useState<ProductPriceHistory[]>([]);
   const [form, setForm] = useState<ProductForm>(emptyForm);
@@ -52,12 +53,27 @@ export function ProductManagementPage() {
     api.get<Category[]>('/categories').then(setCategories).catch(() => setCategories([]));
   }, []);
 
-  const filteredProducts = products.filter(
-    (p) =>
-      (p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        p.id.includes(searchTerm)) &&
-      (selectedCategory ? p.category === selectedCategory : true)
-  );
+  const loadAdminProducts = useCallback(async () => {
+    try {
+      const data = await api.get<Product[]>('/products?admin=1');
+      setAdminProducts(data);
+    } catch {
+      setAdminProducts(products);
+    }
+  }, [products]);
+
+  useEffect(() => {
+    loadAdminProducts();
+  }, [loadAdminProducts]);
+
+  const filteredProducts = adminProducts
+    .filter(
+      (p) =>
+        (p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          p.id.includes(searchTerm)) &&
+        (selectedCategory ? p.category === selectedCategory : true)
+    )
+    .sort((a, b) => a.name.localeCompare(b.name, 'vi', { sensitivity: 'base' }));
 
   const openCreateModal = () => {
     setEditingProduct(null);
@@ -114,15 +130,19 @@ export function ProductManagementPage() {
     } else {
       await api.post('/products', payload());
     }
-    await refreshData();
+    await Promise.all([refreshData(), loadAdminProducts()]);
     setIsModalOpen(false);
   };
 
-  const handleDelete = async () => {
-    if (!deletingProduct) return;
-    await api.delete(`/products/${deletingProduct.id}`);
-    await refreshData();
-    setIsDeleteModalOpen(false);
+  const handleToggleVisibility = async () => {
+    if (!visibilityProduct) return;
+    if (visibilityProduct.status === 'hidden') {
+      await api.patch(`/products/${visibilityProduct.id}`, { status: 'active' });
+    } else {
+      await api.delete(`/products/${visibilityProduct.id}`);
+    }
+    await Promise.all([refreshData(), loadAdminProducts()]);
+    setIsVisibilityModalOpen(false);
   };
 
   const openHistoryModal = async (product: Product) => {
@@ -252,12 +272,20 @@ export function ProductManagementPage() {
                         </button>
                         <button
                           onClick={() => {
-                            setDeletingProduct(product);
-                            setIsDeleteModalOpen(true);
+                            setVisibilityProduct(product);
+                            setIsVisibilityModalOpen(true);
                           }}
-                          className="p-1.5 text-red-600 hover:bg-red-50 rounded transition-colors"
-                          title="Ẩn">
-                          <TrashIcon className="w-4 h-4" />
+                          className={`p-1.5 rounded transition-colors ${
+                            product.status === 'hidden'
+                              ? 'text-green-600 hover:bg-green-50'
+                              : 'text-red-600 hover:bg-red-50'
+                          }`}
+                          title={product.status === 'hidden' ? 'Hiển thị sản phẩm' : 'Ẩn sản phẩm'}>
+                          {product.status === 'hidden' ? (
+                            <EyeIcon className="w-4 h-4" />
+                          ) : (
+                            <EyeOffIcon className="w-4 h-4" />
+                          )}
                         </button>
                       </div>
                     </td>
@@ -475,32 +503,47 @@ export function ProductManagementPage() {
       </AnimatePresence>
 
       <AnimatePresence>
-        {isDeleteModalOpen && deletingProduct && (
+        {isVisibilityModalOpen && visibilityProduct && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
             <motion.div
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
               className="bg-white rounded-xl shadow-warm-lg w-full max-w-md p-6 text-center">
-              <div className="w-16 h-16 bg-red-100 text-red-600 rounded-full flex items-center justify-center mx-auto mb-4">
-                <TrashIcon className="w-8 h-8" />
+              <div
+                className={`w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 ${
+                  visibilityProduct.status === 'hidden'
+                    ? 'bg-green-100 text-green-600'
+                    : 'bg-red-100 text-red-600'
+                }`}>
+                {visibilityProduct.status === 'hidden' ? (
+                  <EyeIcon className="w-8 h-8" />
+                ) : (
+                  <EyeOffIcon className="w-8 h-8" />
+                )}
               </div>
               <h3 className="font-serif text-xl font-bold text-heading mb-2">
-                Ẩn sản phẩm
+                {visibilityProduct.status === 'hidden' ? 'Hiển thị sản phẩm' : 'Ẩn sản phẩm'}
               </h3>
               <p className="text-body mb-6">
-                Sản phẩm sẽ chuyển sang trạng thái hidden và không hiển thị cho buyer.
+                {visibilityProduct.status === 'hidden'
+                  ? 'Sản phẩm sẽ chuyển sang trạng thái active và hiển thị lại ở các trang bán hàng.'
+                  : 'Sản phẩm sẽ chuyển sang trạng thái hidden và không hiển thị cho buyer.'}
               </p>
               <div className="flex justify-center space-x-3">
                 <button
-                  onClick={() => setIsDeleteModalOpen(false)}
+                  onClick={() => setIsVisibilityModalOpen(false)}
                   className="px-6 py-2 border border-border rounded-lg font-medium text-heading hover:bg-background transition-colors">
                   Hủy
                 </button>
                 <button
-                  onClick={handleDelete}
-                  className="px-6 py-2 bg-red-600 text-white rounded-lg font-medium hover:bg-red-700 transition-colors">
-                  Ẩn sản phẩm
+                  onClick={handleToggleVisibility}
+                  className={`px-6 py-2 text-white rounded-lg font-medium transition-colors ${
+                    visibilityProduct.status === 'hidden'
+                      ? 'bg-green-600 hover:bg-green-700'
+                      : 'bg-red-600 hover:bg-red-700'
+                  }`}>
+                  {visibilityProduct.status === 'hidden' ? 'Hiển thị sản phẩm' : 'Ẩn sản phẩm'}
                 </button>
               </div>
             </motion.div>
