@@ -18,15 +18,16 @@ END //
 CREATE PROCEDURE `sp_UpdateInventory`(
     IN p_ProductID INT,
     IN p_QuantityDelta INT,
-    IN p_Reason VARCHAR(50)
+    IN p_Reason VARCHAR(50),
+    IN p_OrderID INT
 )
 BEGIN
     UPDATE `Inventory`
     SET `StockQuantity` = `StockQuantity` + p_QuantityDelta
     WHERE `ProductID` = p_ProductID;
 
-    INSERT INTO `InventoryLog` (`ProductID`, `ChangeQuantity`, `Reason`)
-    VALUES (p_ProductID, p_QuantityDelta, p_Reason);
+    INSERT INTO `InventoryLog` (`ProductID`, `OrderID`, `ChangeQuantity`, `Reason`)
+    VALUES (p_ProductID, p_OrderID, p_QuantityDelta, p_Reason);
 END //
 
 CREATE PROCEDURE `sp_ProcessCancelRequest`(
@@ -49,15 +50,23 @@ DELIMITER ;
 CREATE OR REPLACE VIEW `vw_ProductInventory` AS
 SELECT
     p.`ProductID`,
+    p.`CategoryID`,
     p.`ProductName`,
+    p.`ProductImage`,
     c.`CategoryName`,
     p.`Price`,
     p.`ImportPrice`,
+    p.`Description`,
+    p.`Condition`,
+    p.`SoldQuantity`,
     p.`DiscountPercent`,
     fn_FinalPrice(p.`Price`, p.`DiscountPercent`) AS `FinalPrice`,
-    i.`StockQuantity`,
-    i.`LowStockThreshold`,
-    p.`ProductStatus`
+    COALESCE(i.`StockQuantity`, 0) AS `StockQuantity`,
+    COALESCE(i.`LowStockThreshold`, 5) AS `LowStockThreshold`,
+    i.`DateUpdate`,
+    p.`ProductStatus`,
+    p.`CreatedAt`,
+    p.`UpdatedAt`
 FROM `Product` p
 JOIN `Category` c ON c.`CategoryID` = p.`CategoryID`
 LEFT JOIN `Inventory` i ON i.`ProductID` = p.`ProductID`;
@@ -67,12 +76,18 @@ SELECT
     o.`OrderID`,
     o.`UserID`,
     u.`Username`,
+    u.`Email`,
+    o.`PhoneNumber`,
+    o.`Address`,
     o.`TotalAmount`,
+    o.`Status`,
     o.`Status` AS `OrderStatus`,
     pm.`MethodName`,
     pay.`Status` AS `PaymentStatus`,
     pay.`PaymentDate`,
-    o.`OrderDate`
+    o.`OrderDate`,
+    o.`CreatedAt`,
+    o.`UpdatedAt`
 FROM `Order` o
 LEFT JOIN `Users` u ON u.`UserID` = o.`UserID`
 LEFT JOIN `Payment` pay ON pay.`OrderID` = o.`OrderID`

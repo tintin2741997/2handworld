@@ -92,16 +92,16 @@ INSERT IGNORE INTO `PaymentMethod` (`MethodID`, `MethodName`) VALUES
 
 -- 6. ORDER (10 rows)
 INSERT INTO `Order` (`OrderID`, `UserID`, `OrderDate`, `TotalAmount`, `Status`, `PhoneNumber`, `Address`) VALUES
-(1, 2, '2026-04-10 09:15:00', 180000, 'Hoàn thành', '0901112222', '123 Lê Lợi, Q.1, TP.HCM'),
-(2, 3, '2026-04-15 14:20:00', 345000, 'Hoàn thành', '0903334444', '456 Nguyễn Huệ, Q.1, TP.HCM'),
-(3, 8, '2026-04-20 10:05:00', 412500, 'Hoàn thành', '0934445566', '78 CMT8, Q.3, TP.HCM'),
-(4, 5, '2026-05-01 08:40:00', 180000, 'Đã xác nhận', '0981112233', '12 Hai Bà Trưng, Hoàn Kiếm, HN'),
-(5, 7, '2026-05-02 11:20:00', 250000, 'Đang giao', '0913334455', '56 Tôn Đức Thắng, Q.Đống Đa, HN'),
-(6, 10, '2026-05-03 14:10:00', 133000, 'Đã xác nhận', '0966667788', '112 Nguyễn Thị Minh Khai, Q.3, TP.HCM'),
-(7, 4, '2026-05-04 09:00:00', 190000, 'Chưa xác nhận', '0905556666', '789 Trần Hưng Đạo, Q.1, TP.HCM'),
-(8, 9, '2026-05-04 16:30:00', 315000, 'Đã hủy', '0945556677', '90 Phan Đăng Lưu, Phú Nhuận, TP.HCM'),
-(9, 11, '2026-05-05 08:15:00', 220000, 'Chưa xác nhận', '0927778899', '33 Hoàng Diệu, Hải Châu, Đà Nẵng'),
-(10, NULL, '2026-05-05 10:00:00', 150000, 'Chưa xác nhận', '0991112222', 'Khách Vãng Lai, Q.10, TP.HCM');
+(1, 2, '2026-04-10 09:15:00', 180000, 'completed', '0901112222', '123 Lê Lợi, Q.1, TP.HCM'),
+(2, 3, '2026-04-15 14:20:00', 345000, 'completed', '0903334444', '456 Nguyễn Huệ, Q.1, TP.HCM'),
+(3, 8, '2026-04-20 10:05:00', 412500, 'completed', '0934445566', '78 CMT8, Q.3, TP.HCM'),
+(4, 5, '2026-05-01 08:40:00', 180000, 'confirmed', '0981112233', '12 Hai Bà Trưng, Hoàn Kiếm, HN'),
+(5, 7, '2026-05-02 11:20:00', 250000, 'shipping', '0913334455', '56 Tôn Đức Thắng, Q.Đống Đa, HN'),
+(6, 10, '2026-05-03 14:10:00', 133000, 'confirmed', '0966667788', '112 Nguyễn Thị Minh Khai, Q.3, TP.HCM'),
+(7, 4, '2026-05-04 09:00:00', 190000, 'pending', '0905556666', '789 Trần Hưng Đạo, Q.1, TP.HCM'),
+(8, 9, '2026-05-04 16:30:00', 315000, 'cancelled', '0945556677', '90 Phan Đăng Lưu, Phú Nhuận, TP.HCM'),
+(9, 11, '2026-05-05 08:15:00', 220000, 'pending', '0927778899', '33 Hoàng Diệu, Hải Châu, Đà Nẵng'),
+(10, NULL, '2026-05-05 10:00:00', 150000, 'pending', '0991112222', 'Khách Vãng Lai, Q.10, TP.HCM');
 
 -- 7. ORDER DETAIL (10 rows)
 INSERT INTO `OrderDetail` (`OrderID`, `ProductID`, `Quantity`, `Price`) VALUES
@@ -118,16 +118,16 @@ INSERT INTO `OrderDetail` (`OrderID`, `ProductID`, `Quantity`, `Price`) VALUES
 
 -- 8. PAYMENT (10 rows)
 INSERT INTO `Payment` (`PaymentID`, `OrderID`, `MethodID`, `Status`, `PaymentDate`) VALUES
-(1, 1, 1, 'Đã thanh toán', '2026-04-12 16:30:00'),
-(2, 2, 2, 'Đã thanh toán', '2026-04-15 14:30:00'),
-(3, 3, 2, 'Đã thanh toán', '2026-04-20 10:10:00'),
-(4, 4, 1, 'Chưa thanh toán', NULL),
-(5, 5, 1, 'Chưa thanh toán', NULL),
-(6, 6, 2, 'Đã thanh toán', '2026-05-03 14:15:00'),
-(7, 7, 1, 'Chưa thanh toán', NULL),
-(8, 8, 1, 'Chưa thanh toán', NULL),
-(9, 9, 1, 'Chưa thanh toán', NULL),
-(10, 10, 1, 'Chưa thanh toán', NULL);
+(1, 1, 1, 'paid', '2026-04-12 16:30:00'),
+(2, 2, 2, 'paid', '2026-04-15 14:30:00'),
+(3, 3, 2, 'paid', '2026-04-20 10:10:00'),
+(4, 4, 1, 'unpaid', NULL),
+(5, 5, 1, 'unpaid', NULL),
+(6, 6, 2, 'paid', '2026-05-03 14:15:00'),
+(7, 7, 1, 'unpaid', NULL),
+(8, 8, 1, 'unpaid', NULL),
+(9, 9, 1, 'unpaid', NULL),
+(10, 10, 1, 'unpaid', NULL);
 
 -- 9. REVIEW (10 rows)
 INSERT INTO `Review` (`ReviewID`, `ProductID`, `UserID`, `Rating`, `Comment`, `Status`, `CreatedAt`) VALUES

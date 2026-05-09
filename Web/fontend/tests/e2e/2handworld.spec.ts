@@ -221,7 +221,7 @@ async function getActiveProductWithStock(
 test.describe('2HAND WORLD buyer website', () => {
   test.beforeEach(async ({ page }) => {
     await page.context().clearCookies();
-    await page.goto('/');
+    await page.goto('/', { waitUntil: 'domcontentloaded' });
     await page.evaluate(() => localStorage.clear());
   });
 

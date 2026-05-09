@@ -26,6 +26,13 @@ function db(): PDO
     return Database::connection();
 }
 
+function call_procedure(string $sql, array $params = []): void
+{
+    $stmt = db()->prepare($sql);
+    $stmt->execute($params);
+    $stmt->closeCursor();
+}
+
 function json_response(mixed $data, int $status = 200): void
 {
     http_response_code($status);
@@ -127,50 +134,22 @@ function slugify(string $text): string
 
 function frontend_order_status(string $status): string
 {
-    return [
-        'Chưa xác nhận' => 'pending',
-        'Đã xác nhận' => 'confirmed',
-        'Đang giao' => 'shipping',
-        'Hoàn thành' => 'completed',
-        'Đã hủy' => 'cancelled',
-        'Giao thất bại' => 'failed_delivery',
-        'Đã trả về cửa hàng' => 'returned',
-        'Bị từ chối' => 'rejected',
-    ][$status] ?? $status;
+    return $status;
 }
 
 function db_order_status(string $status): string
 {
-    return [
-        'pending' => 'Chưa xác nhận',
-        'confirmed' => 'Đã xác nhận',
-        'shipping' => 'Đang giao',
-        'completed' => 'Hoàn thành',
-        'cancelled' => 'Đã hủy',
-        'failed_delivery' => 'Giao thất bại',
-        'returned' => 'Đã trả về cửa hàng',
-        'rejected' => 'Bị từ chối',
-    ][$status] ?? $status;
+    return $status;
 }
 
 function frontend_payment_status(string $status): string
 {
-    return [
-        'Chưa thanh toán' => 'unpaid',
-        'Đã thanh toán' => 'paid',
-        'Thanh toán thất bại' => 'failed',
-        'Đã hoàn tiền' => 'refunded',
-    ][$status] ?? $status;
+    return $status;
 }
 
 function db_payment_status(string $status): string
 {
-    return [
-        'unpaid' => 'Chưa thanh toán',
-        'paid' => 'Đã thanh toán',
-        'failed' => 'Thanh toán thất bại',
-        'refunded' => 'Đã hoàn tiền',
-    ][$status] ?? $status;
+    return $status;
 }
 
 function method_name(string $method): string
@@ -187,7 +166,7 @@ function product_row(array $row): array
 {
     $price = (int) $row['Price'];
     $discount = (int) ($row['DiscountPercent'] ?? 0);
-    $finalPrice = $discount > 0 ? (int) round($price * (100 - $discount) / 100) : $price;
+    $finalPrice = isset($row['FinalPrice']) ? (int) $row['FinalPrice'] : $price;
     $image = $row['ProductImage'] ?: 'https://picsum.photos/seed/product' . $row['ProductID'] . '/600/600';
 
     return [
@@ -231,15 +210,22 @@ function order_row(array $order): array
         'condition' => $item['Condition'],
     ], $stmt->fetchAll());
 
-    $payment = db()->prepare(
-        'SELECT p.Status, pm.MethodName
-         FROM `Payment` p
-         JOIN `PaymentMethod` pm ON pm.MethodID = p.MethodID
-         WHERE p.OrderID = ?
-         LIMIT 1'
-    );
-    $payment->execute([(int) $order['OrderID']]);
-    $paymentRow = $payment->fetch() ?: ['Status' => 'Chưa thanh toán', 'MethodName' => 'COD'];
+    if (array_key_exists('PaymentStatus', $order) || array_key_exists('MethodName', $order)) {
+        $paymentRow = [
+            'Status' => $order['PaymentStatus'] ?? 'unpaid',
+            'MethodName' => $order['MethodName'] ?? 'COD',
+        ];
+    } else {
+        $payment = db()->prepare(
+            'SELECT p.Status, pm.MethodName
+             FROM `Payment` p
+             JOIN `PaymentMethod` pm ON pm.MethodID = p.MethodID
+             WHERE p.OrderID = ?
+             LIMIT 1'
+        );
+        $payment->execute([(int) $order['OrderID']]);
+        $paymentRow = $payment->fetch() ?: ['Status' => 'unpaid', 'MethodName' => 'COD'];
+    }
 
     $row = [
         'id' => 'o' . $order['OrderID'],
@@ -258,7 +244,7 @@ function order_row(array $order): array
         ],
         'paymentMethod' => $paymentRow['MethodName'] === 'Bank' ? 'bank_transfer' : strtolower((string) $paymentRow['MethodName']),
         'paymentStatus' => frontend_payment_status((string) $paymentRow['Status']),
-        'orderStatus' => frontend_order_status((string) $order['Status']),
+        'orderStatus' => frontend_order_status((string) ($order['Status'] ?? $order['OrderStatus'] ?? '')),
         'totalAmount' => (int) $order['TotalAmount'],
         'shippingFee' => max(0, (int) $order['TotalAmount'] - array_sum(array_map(static fn(array $i): int => $i['price'] * $i['quantity'], $items))),
         'note' => '',
@@ -343,15 +329,11 @@ function product_list(): void
         default => 'p.CreatedAt DESC',
     };
 
-    $sql = "SELECT p.*, c.CategoryName, COALESCE(i.StockQuantity, 0) AS StockQuantity,
-                   CASE WHEN p.DiscountPercent > 0 THEN ROUND(p.Price * (100 - p.DiscountPercent) / 100) ELSE p.Price END AS FinalPrice,
-                   AVG(r.Rating) AS Rating, COUNT(r.ReviewID) AS ReviewCount
-            FROM `Product` p
-            JOIN `Category` c ON c.CategoryID = p.CategoryID
-            LEFT JOIN `Inventory` i ON i.ProductID = p.ProductID
-            LEFT JOIN `Review` r ON r.ProductID = p.ProductID AND r.Status = 'active'
+    $sql = "SELECT p.*,
+                   (SELECT AVG(r.Rating) FROM `Review` r WHERE r.ProductID = p.ProductID AND r.Status = 'active') AS Rating,
+                   (SELECT COUNT(r.ReviewID) FROM `Review` r WHERE r.ProductID = p.ProductID AND r.Status = 'active') AS ReviewCount
+            FROM `vw_ProductInventory` p
             WHERE " . implode(' AND ', $where) . "
-            GROUP BY p.ProductID
             ORDER BY {$order}";
 
     $stmt = db()->prepare($sql);
@@ -362,14 +344,11 @@ function product_list(): void
 function product_detail(string $id): void
 {
     $stmt = db()->prepare(
-        "SELECT p.*, c.CategoryName, COALESCE(i.StockQuantity, 0) AS StockQuantity,
-                AVG(r.Rating) AS Rating, COUNT(r.ReviewID) AS ReviewCount
-         FROM `Product` p
-         JOIN `Category` c ON c.CategoryID = p.CategoryID
-         LEFT JOIN `Inventory` i ON i.ProductID = p.ProductID
-         LEFT JOIN `Review` r ON r.ProductID = p.ProductID AND r.Status = 'active'
-         WHERE p.ProductID = ?
-         GROUP BY p.ProductID"
+        "SELECT p.*,
+                (SELECT AVG(r.Rating) FROM `Review` r WHERE r.ProductID = p.ProductID AND r.Status = 'active') AS Rating,
+                (SELECT COUNT(r.ReviewID) FROM `Review` r WHERE r.ProductID = p.ProductID AND r.Status = 'active') AS ReviewCount
+         FROM `vw_ProductInventory` p
+         WHERE p.ProductID = ?"
     );
     $stmt->execute([int_id($id, 'p')]);
     $row = $stmt->fetch();
@@ -404,11 +383,10 @@ function product_create(): void
         ]);
         $productId = (int) db()->lastInsertId();
         $stock = (int) ($data['stock'] ?? 0);
-        db()->prepare('INSERT INTO `Inventory` (ProductID, StockQuantity, LowStockThreshold) VALUES (?, ?, ?)')
-            ->execute([$productId, $stock, (int) ($data['lowStockThreshold'] ?? 5)]);
+        db()->prepare('INSERT INTO `Inventory` (ProductID, StockQuantity, LowStockThreshold) VALUES (?, 0, ?)')
+            ->execute([$productId, (int) ($data['lowStockThreshold'] ?? 5)]);
         if ($stock !== 0) {
-            db()->prepare('INSERT INTO `InventoryLog` (ProductID, ChangeQuantity, Reason) VALUES (?, ?, ?)')
-                ->execute([$productId, $stock, 'Nhập hàng']);
+            call_procedure('CALL sp_UpdateInventory(?, ?, ?, ?)', [$productId, $stock, 'Nhập hàng', null]);
         }
         db()->commit();
         product_detail((string) $productId);
@@ -474,7 +452,7 @@ function product_update(string $id): void
 function product_price_history(string $id): void
 {
     $productId = int_id($id, 'p');
-    $product = db()->prepare('SELECT ProductID FROM `Product` WHERE ProductID = ? AND ProductStatus != "hidden"');
+    $product = db()->prepare('SELECT ProductID FROM `vw_ProductInventory` WHERE ProductID = ? AND ProductStatus != "hidden"');
     $product->execute([$productId]);
     if (!$product->fetch()) {
         error_response('Không tìm thấy sản phẩm.', 404);
@@ -522,7 +500,7 @@ function category_list(): void
     $stmt = db()->query(
         'SELECT c.CategoryID, c.CategoryName, COUNT(p.ProductID) AS ProductCount
          FROM `Category` c
-         LEFT JOIN `Product` p ON p.CategoryID = c.CategoryID AND p.ProductStatus != "hidden"
+         LEFT JOIN `vw_ProductInventory` p ON p.CategoryID = c.CategoryID AND p.ProductStatus != "hidden"
          GROUP BY c.CategoryID
          ORDER BY c.CategoryID'
     );
@@ -554,7 +532,7 @@ function category_delete(string $id): void
 {
     require_admin();
     $categoryId = int_id($id, 'c');
-    $count = db()->prepare('SELECT COUNT(*) FROM `Product` WHERE CategoryID = ?');
+    $count = db()->prepare('SELECT COUNT(*) FROM `vw_ProductInventory` WHERE CategoryID = ?');
     $count->execute([$categoryId]);
     if ((int) $count->fetchColumn() > 0) {
         error_response('Không thể xóa danh mục đang có sản phẩm.', 409);
@@ -609,7 +587,7 @@ function user_payload(array $row): array
     $stats = db()->prepare(
         "SELECT COUNT(*) AS TotalOrders, COALESCE(SUM(TotalAmount), 0) AS TotalSpent
          FROM `Order`
-         WHERE UserID = ? AND Status = 'Hoàn thành'"
+         WHERE UserID = ? AND Status = 'completed'"
     );
     $stats->execute([(int) $row['UserID']]);
     $summary = $stats->fetch() ?: ['TotalOrders' => 0, 'TotalSpent' => 0];
@@ -733,10 +711,9 @@ function order_create(): void
         foreach ($data['items'] as $item) {
             $productId = int_id($item['productId'] ?? $item['id'] ?? '', 'p');
             $stmt = db()->prepare(
-                'SELECT p.ProductID, p.ProductName, p.Price, p.DiscountPercent, i.StockQuantity
-                 FROM `Product` p
-                 JOIN `Inventory` i ON i.ProductID = p.ProductID
-                 WHERE p.ProductID = ? AND p.ProductStatus = "active"
+                'SELECT ProductID, ProductName, FinalPrice, StockQuantity
+                 FROM `vw_ProductInventory`
+                 WHERE ProductID = ? AND ProductStatus = "active"
                  FOR UPDATE'
             );
             $stmt->execute([$productId]);
@@ -745,7 +722,7 @@ function order_create(): void
             if (!$product || (int) $product['StockQuantity'] < $quantity) {
                 throw new RuntimeException('Sản phẩm không đủ tồn kho: ' . ($item['productName'] ?? $productId));
             }
-            $price = (int) round((int) $product['Price'] * (100 - (int) $product['DiscountPercent']) / 100);
+            $price = (int) $product['FinalPrice'];
             $subtotal += $price * $quantity;
             $orderItems[] = ['id' => $productId, 'quantity' => $quantity, 'price' => $price];
         }
@@ -754,7 +731,7 @@ function order_create(): void
         $total = $subtotal + $shippingFee;
         db()->prepare(
             "INSERT INTO `Order` (UserID, TotalAmount, Status, PhoneNumber, Address)
-             VALUES (?, ?, 'Chưa xác nhận', ?, ?)"
+             VALUES (?, ?, 'pending', ?, ?)"
         )->execute([
             current_user_id(),
             $total,
@@ -767,10 +744,7 @@ function order_create(): void
             db()->prepare('INSERT INTO `OrderDetail` (OrderID, ProductID, Quantity, Price) VALUES (?, ?, ?, ?)')
                 ->execute([$orderId, $item['id'], $item['quantity'], $item['price']]);
             
-            db()->prepare('UPDATE `Inventory` SET StockQuantity = StockQuantity - ? WHERE ProductID = ?')
-                ->execute([$item['quantity'], $item['id']]);
-            db()->prepare('INSERT INTO `InventoryLog` (ProductID, OrderID, ChangeQuantity, Reason) VALUES (?, ?, ?, ?)')
-                ->execute([$item['id'], $orderId, -$item['quantity'], 'Xuất bán']);
+            call_procedure('CALL sp_UpdateInventory(?, ?, ?, ?)', [$item['id'], -$item['quantity'], 'Xuất bán', $orderId]);
             db()->prepare('UPDATE `Product` SET SoldQuantity = SoldQuantity + ? WHERE ProductID = ?')
                 ->execute([$item['quantity'], $item['id']]);
         }
@@ -780,16 +754,15 @@ function order_create(): void
         $methodId = db()->prepare('SELECT MethodID FROM `PaymentMethod` WHERE MethodName = ?');
         $methodId->execute([$method]);
         $methodRow = $methodId->fetch();
-        db()->prepare("INSERT INTO `Payment` (OrderID, MethodID, Status, PaymentDate) VALUES (?, ?, 'Chưa thanh toán', NULL)")
+        db()->prepare("INSERT INTO `Payment` (OrderID, MethodID, Status, PaymentDate) VALUES (?, ?, 'unpaid', NULL)")
             ->execute([$orderId, (int) $methodRow['MethodID']]);
 
         db()->commit();
 
         $created = db()->prepare(
-            'SELECT o.*, u.Username, u.Email
-             FROM `Order` o
-             LEFT JOIN `Users` u ON u.UserID = o.UserID
-             WHERE o.OrderID = ?'
+            'SELECT *
+             FROM `vw_OrderPaymentSummary`
+             WHERE OrderID = ?'
         );
         $created->execute([$orderId]);
         json_response(['success' => true, 'data' => order_row($created->fetch())], 201);
@@ -806,18 +779,18 @@ function order_list(): void
     $params = [];
     $where = [];
     if (current_user_role() !== 'admin') {
-        $where[] = 'o.UserID = ?';
+        $where[] = 'UserID = ?';
         $params[] = require_login();
     }
     if (!empty($_GET['status'])) {
-        $where[] = 'o.Status = ?';
+        $where[] = 'Status = ?';
         $params[] = db_order_status((string) $_GET['status']);
     }
-    $sql = 'SELECT o.*, u.Username, u.Email FROM `Order` o LEFT JOIN `Users` u ON u.UserID = o.UserID';
+    $sql = 'SELECT * FROM `vw_OrderPaymentSummary`';
     if ($where !== []) {
         $sql .= ' WHERE ' . implode(' AND ', $where);
     }
-    $sql .= ' ORDER BY o.CreatedAt DESC';
+    $sql .= ' ORDER BY CreatedAt DESC';
     $stmt = db()->prepare($sql);
     $stmt->execute($params);
     json_response(['success' => true, 'data' => array_map('order_row', $stmt->fetchAll())]);
@@ -826,7 +799,7 @@ function order_list(): void
 function order_detail(string $id): void
 {
     $orderId = int_id($id, 'o');
-    $stmt = db()->prepare('SELECT o.*, u.Username, u.Email FROM `Order` o LEFT JOIN `Users` u ON u.UserID = o.UserID WHERE o.OrderID = ?');
+    $stmt = db()->prepare('SELECT * FROM `vw_OrderPaymentSummary` WHERE OrderID = ?');
     $stmt->execute([$orderId]);
     $order = $stmt->fetch();
     if (!$order) {
@@ -857,8 +830,8 @@ function order_status(string $id): void
         $oldStatus = (string) $order['Status'];
 
         db()->prepare('UPDATE `Order` SET Status = ? WHERE OrderID = ?')->execute([$newStatus, $orderId]);
-        if (in_array($newStatus, ['Đã hủy', 'Giao thất bại', 'Đã trả về cửa hàng', 'Bị từ chối'], true)
-            && !in_array($oldStatus, ['Đã hủy', 'Giao thất bại', 'Đã trả về cửa hàng', 'Bị từ chối'], true)) {
+        if (in_array($newStatus, ['cancelled', 'failed_delivery', 'returned', 'rejected'], true)
+            && !in_array($oldStatus, ['cancelled', 'failed_delivery', 'returned', 'rejected'], true)) {
             inventory_for_order($orderId, 1, 'Hoàn hàng');
         }
         db()->commit();
@@ -875,10 +848,7 @@ function inventory_for_order(int $orderId, int $direction, string $reason): void
     $stmt->execute([$orderId]);
     foreach ($stmt->fetchAll() as $item) {
         $change = $direction * (int) $item['Quantity'];
-        db()->prepare('UPDATE `Inventory` SET StockQuantity = StockQuantity + ? WHERE ProductID = ?')
-            ->execute([$change, (int) $item['ProductID']]);
-        db()->prepare('INSERT INTO `InventoryLog` (ProductID, OrderID, ChangeQuantity, Reason) VALUES (?, ?, ?, ?)')
-            ->execute([(int) $item['ProductID'], $orderId, $change, $reason]);
+        call_procedure('CALL sp_UpdateInventory(?, ?, ?, ?)', [(int) $item['ProductID'], $change, $reason, $orderId]);
         if ($direction < 0) {
             db()->prepare('UPDATE `Product` SET SoldQuantity = SoldQuantity + ? WHERE ProductID = ?')
                 ->execute([(int) $item['Quantity'], (int) $item['ProductID']]);
@@ -892,7 +862,7 @@ function payment_status(string $id): void
     $data = body();
     require_fields($data, ['status']);
     $status = db_payment_status((string) $data['status']);
-    $date = in_array($status, ['Đã thanh toán', 'Đã hoàn tiền'], true) ? date('Y-m-d H:i:s') : null;
+    $date = in_array($status, ['paid', 'refunded'], true) ? date('Y-m-d H:i:s') : null;
     db()->prepare('UPDATE `Payment` SET Status = ?, PaymentDate = ? WHERE OrderID = ?')
         ->execute([$status, $date, int_id($id, 'o')]);
     order_detail($id);
@@ -957,10 +927,9 @@ function cancel_request_process(string $id): void
         if (!$request) {
             throw new RuntimeException('Không tìm thấy yêu cầu hủy.');
         }
-        db()->prepare('UPDATE `CancelRequest` SET Status = ?, ReasonAdmin = ?, ResolvedAt = NOW(), ResolvedBy = ? WHERE RequestID = ?')
-            ->execute([$status, $data['adminReason'] ?? null, current_user_id(), $requestId]);
+        call_procedure('CALL sp_ProcessCancelRequest(?, ?, ?, ?)', [$requestId, current_user_id(), $status, $data['adminReason'] ?? null]);
         if ($status === 'Approved') {
-            db()->prepare("UPDATE `Order` SET Status = 'Đã hủy' WHERE OrderID = ?")->execute([(int) $request['OrderID']]);
+            db()->prepare("UPDATE `Order` SET Status = 'cancelled' WHERE OrderID = ?")->execute([(int) $request['OrderID']]);
         }
         db()->commit();
         json_response(['success' => true]);
@@ -1036,11 +1005,9 @@ function inventory_list(): void
 {
     require_admin();
     $stmt = db()->query(
-        'SELECT i.*, p.ProductName, p.ProductImage, c.CategoryName
-         FROM `Inventory` i
-         JOIN `Product` p ON p.ProductID = i.ProductID
-         JOIN `Category` c ON c.CategoryID = p.CategoryID
-         ORDER BY i.StockQuantity ASC, p.ProductName ASC'
+        'SELECT ProductID, ProductName, ProductImage, CategoryName, StockQuantity, LowStockThreshold, DateUpdate
+         FROM `vw_ProductInventory`
+         ORDER BY StockQuantity ASC, ProductName ASC'
     );
     $data = array_map(static fn(array $row): array => [
         'productId' => 'p' . $row['ProductID'],
@@ -1074,10 +1041,13 @@ function inventory_update(string $id): void
             throw new RuntimeException('Không tìm thấy tồn kho.');
         }
         $change = $delta ?? ($newStock - (int) $current['StockQuantity']);
-        db()->prepare('UPDATE `Inventory` SET StockQuantity = StockQuantity + ?, LowStockThreshold = COALESCE(?, LowStockThreshold) WHERE ProductID = ?')
-            ->execute([$change, $data['lowStockThreshold'] ?? null, $productId]);
-        db()->prepare('INSERT INTO `InventoryLog` (ProductID, ChangeQuantity, Reason) VALUES (?, ?, ?)')
-            ->execute([$productId, $change, $data['reason'] ?? 'Thay đổi số lượng']);
+        if (array_key_exists('lowStockThreshold', $data)) {
+            db()->prepare('UPDATE `Inventory` SET LowStockThreshold = ? WHERE ProductID = ?')
+                ->execute([(int) $data['lowStockThreshold'], $productId]);
+        }
+        if ($change !== 0) {
+            call_procedure('CALL sp_UpdateInventory(?, ?, ?, ?)', [$productId, $change, $data['reason'] ?? 'Thay đổi số lượng', null]);
+        }
         db()->commit();
         json_response(['success' => true]);
     } catch (Throwable $exception) {
@@ -1090,17 +1060,17 @@ function report_dashboard(): void
 {
     require_admin();
     $stats = [
-        'totalProducts' => (int) db()->query('SELECT COUNT(*) FROM `Product`')->fetchColumn(),
+        'totalProducts' => (int) db()->query('SELECT COUNT(*) FROM `vw_ProductInventory`')->fetchColumn(),
         'totalCategories' => (int) db()->query('SELECT COUNT(*) FROM `Category`')->fetchColumn(),
         'totalArticles' => count(static_articles()),
-        'totalOrders' => (int) db()->query('SELECT COUNT(*) FROM `Order`')->fetchColumn(),
-        'revenue' => (int) db()->query("SELECT COALESCE(SUM(TotalAmount), 0) FROM `Order` WHERE Status = 'Hoàn thành'")->fetchColumn(),
+        'totalOrders' => (int) db()->query('SELECT COUNT(*) FROM `vw_OrderPaymentSummary`')->fetchColumn(),
+        'revenue' => (int) db()->query("SELECT COALESCE(SUM(TotalAmount), 0) FROM `vw_OrderPaymentSummary` WHERE Status = 'completed'")->fetchColumn(),
         'profit' => (int) db()->query(
             "SELECT COALESCE(SUM((od.Price - p.ImportPrice) * od.Quantity), 0)
              FROM `OrderDetail` od
-             JOIN `Order` o ON o.OrderID = od.OrderID
-             JOIN `Product` p ON p.ProductID = od.ProductID
-             WHERE o.Status = 'Hoàn thành'"
+             JOIN `vw_OrderPaymentSummary` o ON o.OrderID = od.OrderID
+             JOIN `vw_ProductInventory` p ON p.ProductID = od.ProductID
+             WHERE o.Status = 'completed'"
         )->fetchColumn(),
     ];
     json_response(['success' => true, 'data' => $stats]);
@@ -1128,10 +1098,10 @@ function report_revenue(): void
                     {$groupExpression} AS sortPeriod,
                     o.TotalAmount AS revenue,
                     COALESCE(SUM((od.Price - p.ImportPrice) * od.Quantity), 0) AS profit
-             FROM `Order` o
+             FROM `vw_OrderPaymentSummary` o
              JOIN `OrderDetail` od ON od.OrderID = o.OrderID
-             JOIN `Product` p ON p.ProductID = od.ProductID
-             WHERE o.Status = 'Hoàn thành'
+             JOIN `vw_ProductInventory` p ON p.ProductID = od.ProductID
+             WHERE o.Status = 'completed'
              GROUP BY o.OrderID, o.TotalAmount, {$groupExpression}, {$periodExpression}
          ) report
          GROUP BY report.sortPeriod, report.month
@@ -1155,9 +1125,9 @@ function report_categories(): void
                 COUNT(DISTINCT o.OrderID) AS orders,
                 COALESCE(SUM(od.Price * od.Quantity), 0) AS revenue
          FROM `Category` c
-         LEFT JOIN `Product` p ON p.CategoryID = c.CategoryID
+         LEFT JOIN `vw_ProductInventory` p ON p.CategoryID = c.CategoryID
          LEFT JOIN `OrderDetail` od ON od.ProductID = p.ProductID
-         LEFT JOIN `Order` o ON o.OrderID = od.OrderID AND o.Status = 'Hoàn thành'
+         LEFT JOIN `vw_OrderPaymentSummary` o ON o.OrderID = od.OrderID AND o.Status = 'completed'
          GROUP BY c.CategoryID
          ORDER BY revenue DESC"
     );
@@ -1248,11 +1218,9 @@ function cart_get(): void
 {
     $cartId = cart_id();
     $stmt = db()->prepare(
-        'SELECT ci.Quantity, p.*, c.CategoryName, COALESCE(i.StockQuantity, 0) AS StockQuantity
+        'SELECT ci.Quantity, p.*
          FROM `CartItems` ci
-         JOIN `Product` p ON p.ProductID = ci.ProductID
-         JOIN `Category` c ON c.CategoryID = p.CategoryID
-         LEFT JOIN `Inventory` i ON i.ProductID = p.ProductID
+         JOIN `vw_ProductInventory` p ON p.ProductID = ci.ProductID
          WHERE ci.CartID = ?'
     );
     $stmt->execute([$cartId]);
@@ -1266,10 +1234,9 @@ function cart_get(): void
 function cart_product_stock(int $productId): int
 {
     $stmt = db()->prepare(
-        'SELECT COALESCE(i.StockQuantity, 0) AS StockQuantity
-         FROM `Product` p
-         LEFT JOIN `Inventory` i ON i.ProductID = p.ProductID
-         WHERE p.ProductID = ? AND p.ProductStatus = "active"
+        'SELECT COALESCE(StockQuantity, 0) AS StockQuantity
+         FROM `vw_ProductInventory`
+         WHERE ProductID = ? AND ProductStatus = "active"
          LIMIT 1'
     );
     $stmt->execute([$productId]);

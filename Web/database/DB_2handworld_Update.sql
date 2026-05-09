@@ -3,7 +3,7 @@
 -- Phiên bản: v2
 -- Thay đổi so với v1:
 --   1. Users.Status CHECK: 'thường' → 'Normal', 'blacklist' → 'Blacklist'
---   2. Order.Status CHECK: 'Giao không thành công' → 'Giao thất bại'
+--   2. Order.Status CHECK uses English enum values shared with frontend
 --   3. Trigger 3: đồng bộ tên trạng thái đóng với CHECK Order
 --   4. Inventory: thêm cột LowStockThreshold (BR-INV-03)
 --   5. Black list: Thêm CHECK (UserID IS NOT NULL OR PhoneNumber IS NOT NULL)
@@ -117,27 +117,27 @@ CREATE TABLE `Blacklist` (
 -- ============================================================
 -- 7. Bảng Order
 -- Status ENUM đồng bộ với BR-ORD-01 và Trigger 3
--- Trạng thái đóng: Hoàn thành, Đã hủy, Bị từ chối, Giao thất bại, Đã trả về cửa hàng
+-- Trạng thái đóng: completed, cancelled, rejected, failed_delivery, returned
 -- ============================================================
 CREATE TABLE `Order` (
     `OrderID`     INT          AUTO_INCREMENT PRIMARY KEY,
     `UserID`      INT,
     `OrderDate`   DATETIME     DEFAULT CURRENT_TIMESTAMP,
     `TotalAmount` INT          NOT NULL,
-    `Status`      VARCHAR(50)  DEFAULT 'Chưa xác nhận',
+    `Status`      VARCHAR(50)  DEFAULT 'pending',
     `PhoneNumber` VARCHAR(15),
     `Address`     VARCHAR(255),
     `CreatedAt`   DATETIME     DEFAULT CURRENT_TIMESTAMP,
     `UpdatedAt`   DATETIME     DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     CHECK (`Status` IN (
-        'Chưa xác nhận',
-        'Đã xác nhận',
-        'Đang giao',
-        'Hoàn thành',
-        'Đã hủy',
-        'Giao thất bại',
-        'Đã trả về cửa hàng',
-        'Bị từ chối'
+        'pending',
+        'confirmed',
+        'shipping',
+        'completed',
+        'cancelled',
+        'failed_delivery',
+        'returned',
+        'rejected'
     ))
 );
 
@@ -172,9 +172,9 @@ CREATE TABLE `Payment` (
     `PaymentID`   INT         AUTO_INCREMENT PRIMARY KEY,
     `OrderID`     INT         NOT NULL,
     `MethodID`    INT         NOT NULL,
-    `Status`      VARCHAR(50) DEFAULT 'Chưa thanh toán',
+    `Status`      VARCHAR(50) DEFAULT 'unpaid',
     `PaymentDate` DATETIME    DEFAULT NULL,
-    CHECK (`Status` IN ('Chưa thanh toán', 'Đã thanh toán', 'Thanh toán thất bại', 'Đã hoàn tiền'))
+    CHECK (`Status` IN ('unpaid', 'paid', 'failed', 'refunded'))
 );
 
 -- ============================================================
@@ -328,9 +328,9 @@ ALTER TABLE `CancelRequest`
 ALTER TABLE `Payment`
     ADD CONSTRAINT `chk_Payment_DateLogic`
         CHECK (
-            (`Status` IN ('Đã thanh toán', 'Đã hoàn tiền')          AND `PaymentDate` IS NOT NULL)
+            (`Status` IN ('paid', 'refunded')          AND `PaymentDate` IS NOT NULL)
             OR
-            (`Status` IN ('Chưa thanh toán', 'Thanh toán thất bại') AND `PaymentDate` IS NULL)
+            (`Status` IN ('unpaid', 'failed') AND `PaymentDate` IS NULL)
         );
 
 -- ProductPriceHistory: giá hợp lệ và phải thay đổi
@@ -391,11 +391,11 @@ BEFORE UPDATE ON `Order`
 FOR EACH ROW
 BEGIN
     IF OLD.`Status` IN (
-        'Hoàn thành',
-        'Đã hủy',
-        'Bị từ chối',
-        'Giao thất bại',
-        'Đã trả về cửa hàng'
+        'completed',
+        'cancelled',
+        'rejected',
+        'failed_delivery',
+        'returned'
     ) AND NEW.`Status` != OLD.`Status` THEN
         SIGNAL SQLSTATE '45000'
         SET MESSAGE_TEXT = 'Lỗi: Không thể thay đổi trạng thái của đơn hàng đã đóng.';
@@ -437,15 +437,16 @@ END //
 CREATE PROCEDURE `sp_UpdateInventory`(
     IN p_ProductID INT,
     IN p_QuantityDelta INT,
-    IN p_Reason VARCHAR(50)
+    IN p_Reason VARCHAR(50),
+    IN p_OrderID INT
 )
 BEGIN
     UPDATE `Inventory`
     SET `StockQuantity` = `StockQuantity` + p_QuantityDelta
     WHERE `ProductID` = p_ProductID;
 
-    INSERT INTO `InventoryLog` (`ProductID`, `ChangeQuantity`, `Reason`)
-    VALUES (p_ProductID, p_QuantityDelta, p_Reason);
+    INSERT INTO `InventoryLog` (`ProductID`, `OrderID`, `ChangeQuantity`, `Reason`)
+    VALUES (p_ProductID, p_OrderID, p_QuantityDelta, p_Reason);
 END //
 
 CREATE PROCEDURE `sp_ProcessCancelRequest`(
@@ -472,15 +473,23 @@ DELIMITER ;
 CREATE OR REPLACE VIEW `vw_ProductInventory` AS
 SELECT
     p.`ProductID`,
+    p.`CategoryID`,
     p.`ProductName`,
+    p.`ProductImage`,
     c.`CategoryName`,
     p.`Price`,
     p.`ImportPrice`,
+    p.`Description`,
+    p.`Condition`,
+    p.`SoldQuantity`,
     p.`DiscountPercent`,
     fn_FinalPrice(p.`Price`, p.`DiscountPercent`) AS `FinalPrice`,
-    i.`StockQuantity`,
-    i.`LowStockThreshold`,
-    p.`ProductStatus`
+    COALESCE(i.`StockQuantity`, 0) AS `StockQuantity`,
+    COALESCE(i.`LowStockThreshold`, 5) AS `LowStockThreshold`,
+    i.`DateUpdate`,
+    p.`ProductStatus`,
+    p.`CreatedAt`,
+    p.`UpdatedAt`
 FROM `Product` p
 JOIN `Category` c ON c.`CategoryID` = p.`CategoryID`
 LEFT JOIN `Inventory` i ON i.`ProductID` = p.`ProductID`;
@@ -490,12 +499,18 @@ SELECT
     o.`OrderID`,
     o.`UserID`,
     u.`Username`,
+    u.`Email`,
+    o.`PhoneNumber`,
+    o.`Address`,
     o.`TotalAmount`,
+    o.`Status`,
     o.`Status` AS `OrderStatus`,
     pm.`MethodName`,
     pay.`Status` AS `PaymentStatus`,
     pay.`PaymentDate`,
-    o.`OrderDate`
+    o.`OrderDate`,
+    o.`CreatedAt`,
+    o.`UpdatedAt`
 FROM `Order` o
 LEFT JOIN `Users` u ON u.`UserID` = o.`UserID`
 LEFT JOIN `Payment` pay ON pay.`OrderID` = o.`OrderID`
