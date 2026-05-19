@@ -24,11 +24,11 @@ GRANT TRIGGER ON `2handworld_schema`.* TO `role_2handworld_admin`;
 -- Buyer: xem san pham/kho/phuong thuc thanh toan, tao don, cap nhat ho so,
 -- gio hang, danh gia va yeu cau huy don.
 GRANT SELECT ON `2handworld_schema`.`Category` TO `role_2handworld_buyer`;
-GRANT SELECT ON `2handworld_schema`.`Product` TO `role_2handworld_buyer`;
-GRANT SELECT ON `2handworld_schema`.`Inventory` TO `role_2handworld_buyer`;
 GRANT SELECT ON `2handworld_schema`.`PaymentMethod` TO `role_2handworld_buyer`;
-GRANT SELECT ON `2handworld_schema`.`vw_ProductInventory` TO `role_2handworld_buyer`;
-GRANT SELECT ON `2handworld_schema`.`vw_OrderPaymentSummary` TO `role_2handworld_buyer`;
+GRANT SELECT ON `2handworld_schema`.`Roles` TO `role_2handworld_buyer`;
+GRANT SELECT ON `2handworld_schema`.`UserRoles` TO `role_2handworld_buyer`;
+GRANT SELECT ON `2handworld_schema`.`vw_BuyerProductCatalog` TO `role_2handworld_buyer`;
+GRANT SELECT ON `2handworld_schema`.`vw_BuyerOrderHistory` TO `role_2handworld_buyer`;
 GRANT SELECT, UPDATE ON `2handworld_schema`.`Users` TO `role_2handworld_buyer`;
 GRANT SELECT, INSERT, UPDATE, DELETE ON `2handworld_schema`.`Cart` TO `role_2handworld_buyer`;
 GRANT SELECT, INSERT, UPDATE, DELETE ON `2handworld_schema`.`CartItems` TO `role_2handworld_buyer`;
@@ -41,12 +41,12 @@ GRANT EXECUTE ON FUNCTION `2handworld_schema`.`fn_FinalPrice` TO `role_2handworl
 
 -- Guest: chi xem du lieu cong khai, dang ky tai khoan va tao don walk-in.
 GRANT SELECT ON `2handworld_schema`.`Category` TO `role_2handworld_guest`;
-GRANT SELECT ON `2handworld_schema`.`Product` TO `role_2handworld_guest`;
-GRANT SELECT ON `2handworld_schema`.`Inventory` TO `role_2handworld_guest`;
 GRANT SELECT ON `2handworld_schema`.`Review` TO `role_2handworld_guest`;
 GRANT SELECT ON `2handworld_schema`.`PaymentMethod` TO `role_2handworld_guest`;
-GRANT SELECT ON `2handworld_schema`.`vw_ProductInventory` TO `role_2handworld_guest`;
+GRANT SELECT ON `2handworld_schema`.`vw_GuestProductCatalog` TO `role_2handworld_guest`;
+GRANT SELECT ON `2handworld_schema`.`vw_GuestOrderLookup` TO `role_2handworld_guest`;
 GRANT INSERT ON `2handworld_schema`.`Users` TO `role_2handworld_guest`;
+GRANT INSERT ON `2handworld_schema`.`UserRoles` TO `role_2handworld_guest`;
 GRANT INSERT ON `2handworld_schema`.`Order` TO `role_2handworld_guest`;
 GRANT INSERT ON `2handworld_schema`.`OrderDetail` TO `role_2handworld_guest`;
 GRANT SELECT, INSERT, UPDATE, DELETE ON `2handworld_schema`.`Cart` TO `role_2handworld_guest`;

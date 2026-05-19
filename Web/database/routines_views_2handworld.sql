@@ -1,6 +1,11 @@
 USE `2handworld_schema`;
 
+DROP VIEW IF EXISTS `vw_GuestOrderLookup`;
+DROP VIEW IF EXISTS `vw_BuyerOrderHistory`;
 DROP VIEW IF EXISTS `vw_OrderPaymentSummary`;
+DROP VIEW IF EXISTS `vw_AdminProductCatalog`;
+DROP VIEW IF EXISTS `vw_BuyerProductCatalog`;
+DROP VIEW IF EXISTS `vw_GuestProductCatalog`;
 DROP VIEW IF EXISTS `vw_ProductInventory`;
 DROP PROCEDURE IF EXISTS `sp_ProcessCancelRequest`;
 DROP PROCEDURE IF EXISTS `sp_UpdateInventory`;
@@ -71,6 +76,43 @@ FROM `Product` p
 JOIN `Category` c ON c.`CategoryID` = p.`CategoryID`
 LEFT JOIN `Inventory` i ON i.`ProductID` = p.`ProductID`;
 
+CREATE OR REPLACE VIEW `vw_GuestProductCatalog` AS
+SELECT
+    `ProductID`,
+    `CategoryID`,
+    `ProductName`,
+    `ProductImage`,
+    `CategoryName`,
+    `FinalPrice`,
+    `Condition`,
+    `StockQuantity`,
+    `ProductStatus`
+FROM `vw_ProductInventory`
+WHERE `ProductStatus` = 'active';
+
+CREATE OR REPLACE VIEW `vw_BuyerProductCatalog` AS
+SELECT
+    `ProductID`,
+    `CategoryID`,
+    `ProductName`,
+    `ProductImage`,
+    `CategoryName`,
+    `Price`,
+    `DiscountPercent`,
+    `FinalPrice`,
+    `Description`,
+    `Condition`,
+    `SoldQuantity`,
+    `StockQuantity`,
+    `ProductStatus`,
+    `CreatedAt`
+FROM `vw_ProductInventory`
+WHERE `ProductStatus` != 'hidden';
+
+CREATE OR REPLACE VIEW `vw_AdminProductCatalog` AS
+SELECT *
+FROM `vw_ProductInventory`;
+
 CREATE OR REPLACE VIEW `vw_OrderPaymentSummary` AS
 SELECT
     o.`OrderID`,
@@ -79,7 +121,8 @@ SELECT
     u.`Email`,
     o.`PhoneNumber`,
     o.`Address`,
-    o.`TotalAmount`,
+    COALESCE(SUM(od.`Price` * od.`Quantity`), o.`TotalAmount`, 0) AS `TotalAmount`,
+    COALESCE(SUM(od.`Price` * od.`Quantity`), 0) AS `CalculatedTotalAmount`,
     o.`Status`,
     o.`Status` AS `OrderStatus`,
     pm.`MethodName`,
@@ -90,5 +133,61 @@ SELECT
     o.`UpdatedAt`
 FROM `Order` o
 LEFT JOIN `Users` u ON u.`UserID` = o.`UserID`
+LEFT JOIN `OrderDetail` od ON od.`OrderID` = o.`OrderID`
 LEFT JOIN `Payment` pay ON pay.`OrderID` = o.`OrderID`
-LEFT JOIN `PaymentMethod` pm ON pm.`MethodID` = pay.`MethodID`;
+LEFT JOIN `PaymentMethod` pm ON pm.`MethodID` = pay.`MethodID`
+GROUP BY
+    o.`OrderID`,
+    o.`UserID`,
+    u.`Username`,
+    u.`Email`,
+    o.`PhoneNumber`,
+    o.`Address`,
+    o.`TotalAmount`,
+    o.`Status`,
+    pm.`MethodName`,
+    pay.`Status`,
+    pay.`PaymentDate`,
+    o.`OrderDate`,
+    o.`CreatedAt`,
+    o.`UpdatedAt`;
+
+CREATE OR REPLACE VIEW `vw_BuyerOrderHistory` AS
+SELECT
+    `OrderID`,
+    `UserID`,
+    `Username`,
+    `PhoneNumber`,
+    `Address`,
+    `TotalAmount`,
+    `CalculatedTotalAmount`,
+    `Status`,
+    `OrderStatus`,
+    `MethodName`,
+    `PaymentStatus`,
+    `PaymentDate`,
+    `OrderDate`,
+    `CreatedAt`,
+    `UpdatedAt`
+FROM `vw_OrderPaymentSummary`
+WHERE `UserID` IS NOT NULL;
+
+CREATE OR REPLACE VIEW `vw_GuestOrderLookup` AS
+SELECT
+    `OrderID`,
+    `UserID`,
+    `Username`,
+    `Email`,
+    `PhoneNumber`,
+    `Address`,
+    `TotalAmount`,
+    `CalculatedTotalAmount`,
+    `Status`,
+    `OrderStatus`,
+    `MethodName`,
+    `PaymentStatus`,
+    `OrderDate`,
+    `CreatedAt`,
+    `UpdatedAt`
+FROM `vw_OrderPaymentSummary`
+WHERE `UserID` IS NULL;

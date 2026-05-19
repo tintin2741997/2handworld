@@ -4,12 +4,15 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../config/database.php';
 
+$sessionPath = session_save_path();
+if ($sessionPath === '' || !is_writable($sessionPath)) {
+    session_save_path(sys_get_temp_dir());
+}
 session_start();
 
 header('Content-Type: application/json; charset=utf-8');
-$origin = $_SERVER['HTTP_ORIGIN'] ?? 'http://localhost:5173';
-$allowedOrigins = ['http://localhost:5173', 'http://127.0.0.1:5173'];
-if (in_array($origin, $allowedOrigins, true)) {
+$origin = $_SERVER['HTTP_ORIGIN'] ?? '';
+if (preg_match('#^https?://(localhost|127\.0\.0\.1)(:\d+)?$#', $origin)) {
     header('Access-Control-Allow-Origin: ' . $origin);
 }
 header('Access-Control-Allow-Credentials: true');
@@ -97,6 +100,44 @@ function current_user_id(): ?int
 function current_user_role(): ?string
 {
     return $_SESSION['role'] ?? null;
+}
+
+function user_primary_role(int $userId): string
+{
+    try {
+        $stmt = db()->prepare(
+            "SELECT r.RoleCode
+             FROM `UserRoles` ur
+             JOIN `Roles` r ON r.RoleID = ur.RoleID
+             WHERE ur.UserID = ?
+             ORDER BY FIELD(r.RoleCode, 'admin', 'buyer', 'guest'), r.RoleCode
+             LIMIT 1"
+        );
+        $stmt->execute([$userId]);
+        $role = $stmt->fetchColumn();
+        if ($role) {
+            return (string) $role;
+        }
+    } catch (Throwable) {
+        // Compatibility with databases that have not run the role migration yet.
+    }
+
+    $fallback = db()->prepare('SELECT Role FROM `Users` WHERE UserID = ?');
+    $fallback->execute([$userId]);
+    return (string) ($fallback->fetchColumn() ?: 'buyer');
+}
+
+function assign_user_role(int $userId, string $roleCode): void
+{
+    try {
+        $stmt = db()->prepare(
+            "INSERT IGNORE INTO `UserRoles` (`UserID`, `RoleID`)
+             SELECT ?, RoleID FROM `Roles` WHERE RoleCode = ?"
+        );
+        $stmt->execute([$userId, $roleCode]);
+    } catch (Throwable) {
+        // Legacy databases keep the Users.Role column until migration is applied.
+    }
 }
 
 function require_login(): int
@@ -227,6 +268,9 @@ function order_row(array $order): array
         $paymentRow = $payment->fetch() ?: ['Status' => 'unpaid', 'MethodName' => 'COD'];
     }
 
+    $calculatedTotal = array_sum(array_map(static fn(array $i): int => $i['price'] * $i['quantity'], $items));
+    $orderTotal = isset($order['CalculatedTotalAmount']) ? (int) $order['CalculatedTotalAmount'] : (int) ($order['TotalAmount'] ?? $calculatedTotal);
+
     $row = [
         'id' => 'o' . $order['OrderID'],
         'orderNumber' => 'ORD-' . date('Ymd', strtotime((string) $order['OrderDate'])) . '-' . str_pad((string) $order['OrderID'], 4, '0', STR_PAD_LEFT),
@@ -245,8 +289,8 @@ function order_row(array $order): array
         'paymentMethod' => $paymentRow['MethodName'] === 'Bank' ? 'bank_transfer' : strtolower((string) $paymentRow['MethodName']),
         'paymentStatus' => frontend_payment_status((string) $paymentRow['Status']),
         'orderStatus' => frontend_order_status((string) ($order['Status'] ?? $order['OrderStatus'] ?? '')),
-        'totalAmount' => (int) $order['TotalAmount'],
-        'shippingFee' => max(0, (int) $order['TotalAmount'] - array_sum(array_map(static fn(array $i): int => $i['price'] * $i['quantity'], $items))),
+        'totalAmount' => $orderTotal,
+        'shippingFee' => max(0, (int) ($order['TotalAmount'] ?? $orderTotal) - $calculatedTotal),
         'note' => '',
         'createdAt' => $order['CreatedAt'],
         'updatedAt' => $order['UpdatedAt'],
@@ -562,6 +606,7 @@ function auth_register(): void
     }
 
     $_SESSION['user_id'] = (int) db()->lastInsertId();
+    assign_user_role($_SESSION['user_id'], 'buyer');
     $_SESSION['role'] = 'buyer';
     user_me();
 }
@@ -578,7 +623,7 @@ function auth_login(): void
     }
 
     $_SESSION['user_id'] = (int) $user['UserID'];
-    $_SESSION['role'] = $user['Role'];
+    $_SESSION['role'] = user_primary_role((int) $user['UserID']);
     user_me();
 }
 
@@ -586,7 +631,7 @@ function user_payload(array $row): array
 {
     $stats = db()->prepare(
         "SELECT COUNT(*) AS TotalOrders, COALESCE(SUM(TotalAmount), 0) AS TotalSpent
-         FROM `Order`
+         FROM `vw_OrderPaymentSummary`
          WHERE UserID = ? AND Status = 'completed'"
     );
     $stats->execute([(int) $row['UserID']]);
@@ -603,7 +648,7 @@ function user_payload(array $row): array
         'phone' => $row['PhoneNumber'],
         'address' => $row['Address'],
         'status' => strtolower((string) ($row['Status'] ?? 'normal')) === 'blacklist' ? 'blacklisted' : strtolower((string) ($row['Status'] ?? 'normal')),
-        'role' => $row['Role'],
+        'role' => user_primary_role((int) $row['UserID']),
         'totalOrders' => (int) $summary['TotalOrders'],
         'totalSpent' => (int) $summary['TotalSpent'],
         'createdAt' => $row['CreatedAt'],
@@ -622,7 +667,14 @@ function user_me(): void
 function user_list(): void
 {
     require_admin();
-    $stmt = db()->query("SELECT * FROM `Users` WHERE Role = 'buyer' ORDER BY CreatedAt DESC");
+    $stmt = db()->query(
+        "SELECT DISTINCT u.*
+         FROM `Users` u
+         LEFT JOIN `UserRoles` ur ON ur.UserID = u.UserID
+         LEFT JOIN `Roles` r ON r.RoleID = ur.RoleID
+         WHERE u.Role = 'buyer' OR r.RoleCode = 'buyer'
+         ORDER BY u.CreatedAt DESC"
+    );
     json_response(['success' => true, 'data' => array_map('user_payload', $stmt->fetchAll())]);
 }
 
@@ -793,6 +845,23 @@ function order_list(): void
     $sql .= ' ORDER BY CreatedAt DESC';
     $stmt = db()->prepare($sql);
     $stmt->execute($params);
+    json_response(['success' => true, 'data' => array_map('order_row', $stmt->fetchAll())]);
+}
+
+function guest_order_history(): void
+{
+    $phone = trim((string) ($_GET['phone'] ?? ''));
+    if ($phone === '') {
+        error_response('Cáº§n nháº­p sá»‘ Ä‘iá»‡n thoáº¡i Ä‘áº·t hÃ ng.', 422);
+    }
+
+    $stmt = db()->prepare(
+        'SELECT *
+         FROM `vw_GuestOrderLookup`
+         WHERE PhoneNumber = ?
+         ORDER BY CreatedAt DESC'
+    );
+    $stmt->execute([$phone]);
     json_response(['success' => true, 'data' => array_map('order_row', $stmt->fetchAll())]);
 }
 
@@ -1064,7 +1133,7 @@ function report_dashboard(): void
         'totalCategories' => (int) db()->query('SELECT COUNT(*) FROM `Category`')->fetchColumn(),
         'totalArticles' => count(static_articles()),
         'totalOrders' => (int) db()->query('SELECT COUNT(*) FROM `vw_OrderPaymentSummary`')->fetchColumn(),
-        'revenue' => (int) db()->query("SELECT COALESCE(SUM(TotalAmount), 0) FROM `vw_OrderPaymentSummary` WHERE Status = 'completed'")->fetchColumn(),
+        'revenue' => (int) db()->query("SELECT COALESCE(SUM(CalculatedTotalAmount), 0) FROM `vw_OrderPaymentSummary` WHERE Status = 'completed'")->fetchColumn(),
         'profit' => (int) db()->query(
             "SELECT COALESCE(SUM((od.Price - p.ImportPrice) * od.Quantity), 0)
              FROM `OrderDetail` od
@@ -1096,13 +1165,13 @@ function report_revenue(): void
              SELECT o.OrderID,
                     {$periodExpression} AS month,
                     {$groupExpression} AS sortPeriod,
-                    o.TotalAmount AS revenue,
+                    o.CalculatedTotalAmount AS revenue,
                     COALESCE(SUM((od.Price - p.ImportPrice) * od.Quantity), 0) AS profit
              FROM `vw_OrderPaymentSummary` o
              JOIN `OrderDetail` od ON od.OrderID = o.OrderID
              JOIN `vw_ProductInventory` p ON p.ProductID = od.ProductID
              WHERE o.Status = 'completed'
-             GROUP BY o.OrderID, o.TotalAmount, {$groupExpression}, {$periodExpression}
+             GROUP BY o.OrderID, o.CalculatedTotalAmount, {$groupExpression}, {$periodExpression}
          ) report
          GROUP BY report.sortPeriod, report.month
          ORDER BY report.sortPeriod ASC"
@@ -1123,7 +1192,7 @@ function report_categories(): void
     $stmt = db()->query(
         "SELECT c.CategoryName AS name,
                 COUNT(DISTINCT o.OrderID) AS orders,
-                COALESCE(SUM(od.Price * od.Quantity), 0) AS revenue
+                COALESCE(SUM(CASE WHEN o.OrderID IS NOT NULL THEN od.Price * od.Quantity ELSE 0 END), 0) AS revenue
          FROM `Category` c
          LEFT JOIN `vw_ProductInventory` p ON p.CategoryID = c.CategoryID
          LEFT JOIN `OrderDetail` od ON od.ProductID = p.ProductID
@@ -1141,6 +1210,71 @@ function report_categories(): void
     ], $rows);
 
     json_response(['success' => true, 'data' => $data]);
+}
+
+function report_products(): void
+{
+    require_admin();
+    $stmt = db()->query(
+        "SELECT p.ProductID,
+                p.ProductName AS name,
+                p.CategoryName AS categoryName,
+                COALESCE(SUM(CASE WHEN o.OrderID IS NOT NULL THEN od.Quantity ELSE 0 END), 0) AS quantitySold,
+                COALESCE(ROUND(
+                    SUM(CASE WHEN o.OrderID IS NOT NULL THEN od.Price * od.Quantity ELSE 0 END)
+                    / NULLIF(SUM(CASE WHEN o.OrderID IS NOT NULL THEN od.Quantity ELSE 0 END), 0)
+                ), 0) AS averagePrice,
+                COALESCE(SUM(CASE WHEN o.OrderID IS NOT NULL THEN od.Price * od.Quantity ELSE 0 END), 0) AS revenue,
+                COALESCE(SUM(CASE WHEN o.OrderID IS NOT NULL THEN (od.Price - p.ImportPrice) * od.Quantity ELSE 0 END), 0) AS profit
+         FROM `vw_ProductInventory` p
+         LEFT JOIN `OrderDetail` od ON od.ProductID = p.ProductID
+         LEFT JOIN `vw_OrderPaymentSummary` o ON o.OrderID = od.OrderID AND o.Status = 'completed'
+         GROUP BY p.ProductID, p.ProductName, p.CategoryName
+         HAVING revenue > 0
+         ORDER BY revenue DESC, quantitySold DESC"
+    );
+
+    json_response(['success' => true, 'data' => array_map(static fn(array $row): array => [
+        'productId' => 'p' . $row['ProductID'],
+        'name' => $row['name'],
+        'categoryName' => $row['categoryName'],
+        'quantitySold' => (int) $row['quantitySold'],
+        'averagePrice' => (int) $row['averagePrice'],
+        'revenue' => (int) $row['revenue'],
+        'profit' => (int) $row['profit'],
+    ], $stmt->fetchAll())]);
+}
+
+function report_export(): void
+{
+    require_admin();
+    $range = ($_GET['range'] ?? 'month') === 'day' ? 'day' : 'month';
+    $periodExpression = $range === 'day'
+        ? "DATE_FORMAT(o.OrderDate, '%d/%m/%Y')"
+        : "DATE_FORMAT(o.OrderDate, '%m/%Y')";
+    $groupExpression = $range === 'day'
+        ? "DATE(o.OrderDate)"
+        : "DATE_FORMAT(o.OrderDate, '%Y-%m')";
+
+    $stmt = db()->query(
+        "SELECT {$periodExpression} AS period,
+                COUNT(DISTINCT o.OrderID) AS orderCount,
+                COALESCE(SUM(od.Price * od.Quantity), 0) AS revenue,
+                COALESCE(SUM((od.Price - p.ImportPrice) * od.Quantity), 0) AS profit
+         FROM `vw_OrderPaymentSummary` o
+         JOIN `OrderDetail` od ON od.OrderID = o.OrderID
+         JOIN `vw_ProductInventory` p ON p.ProductID = od.ProductID
+         WHERE o.Status = 'completed'
+         GROUP BY {$groupExpression}, {$periodExpression}
+         ORDER BY {$groupExpression} ASC"
+    );
+
+    json_response(['success' => true, 'data' => array_map(static fn(array $row): array => [
+        'period' => $row['period'],
+        'orderCount' => (int) $row['orderCount'],
+        'revenue' => (int) $row['revenue'],
+        'profit' => (int) $row['profit'],
+    ], $stmt->fetchAll())]);
 }
 
 function static_articles(): array
@@ -1306,7 +1440,8 @@ function cart_clear(): void
 try {
     $method = $_SERVER['REQUEST_METHOD'];
     $path = $_GET['r'] ?? parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
-    $path = trim(preg_replace('#^/2handworld/Web/backend/api#', '', (string) $path), '/');
+    $path = preg_replace('#^.*?/Web/backend/api(?:/index\.php)?#', '', (string) $path);
+    $path = trim((string) $path, '/');
     $segments = $path === '' ? [] : explode('/', $path);
 
     if ($segments === [] || $segments[0] === 'health') {
@@ -1340,6 +1475,7 @@ try {
 
         ['GET', 'orders', null, null] => order_list(),
         ['POST', 'orders', null, null] => order_create(),
+        ['GET', 'orders', 'guest-history', null] => guest_order_history(),
         ['GET', 'orders', $segments[1] ?? '', null] => order_detail($segments[1]),
         ['PATCH', 'orders', $segments[1] ?? '', 'status'] => order_status($segments[1]),
         ['PATCH', 'orders', $segments[1] ?? '', 'payment'] => payment_status($segments[1]),
@@ -1364,6 +1500,8 @@ try {
         ['GET', 'reports', 'dashboard', null] => report_dashboard(),
         ['GET', 'reports', 'revenue', null] => report_revenue(),
         ['GET', 'reports', 'categories', null] => report_categories(),
+        ['GET', 'reports', 'products', null] => report_products(),
+        ['GET', 'reports', 'export', null] => report_export(),
 
         ['GET', 'content', null, null] => content_list(),
         ['GET', 'stores', null, null] => store_list(),

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import {
   PackageIcon,
   ChevronRightIcon,
@@ -16,7 +16,6 @@ import { api } from '../../services/api';
 export function MyOrdersPage() {
   const { user } = useAuth();
   const { orders, submitCancelRequest } = useOrder();
-  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<OrderStatus | 'all'>('all');
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [showCancelModal, setShowCancelModal] = useState(false);
@@ -25,12 +24,29 @@ export function MyOrdersPage() {
   const [reviewOrder, setReviewOrder] = useState<Order | null>(null);
   const [rating, setRating] = useState(5);
   const [comment, setComment] = useState('');
-  if (!user) {
-    navigate('/dang-nhap');
-    return null;
-  }
+  const [guestPhone, setGuestPhone] = useState('');
+  const [guestOrders, setGuestOrders] = useState<Order[]>([]);
+  const [guestLookupMessage, setGuestLookupMessage] = useState('');
+
+  const lookupGuestOrders = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setGuestLookupMessage('');
+    try {
+      const data = await api.get<Order[]>(
+        `/orders/guest-history?phone=${encodeURIComponent(guestPhone.trim())}`
+      );
+      setGuestOrders(data);
+      if (data.length === 0) {
+        setGuestLookupMessage('KhÃ´ng tÃ¬m tháº¥y Ä‘Æ¡n hÃ ng guest theo sá»‘ Ä‘iá»‡n thoáº¡i nÃ y.');
+      }
+    } catch (error) {
+      setGuestOrders([]);
+      setGuestLookupMessage(error instanceof Error ? error.message : 'KhÃ´ng thá»ƒ tra cá»©u Ä‘Æ¡n hÃ ng.');
+    }
+  };
+
   // Filter orders for current user
-  const userOrders = orders.filter((o) => o.userId === user.id);
+  const userOrders = user ? orders.filter((o) => o.userId === user.id) : guestOrders;
   const filteredOrders =
   activeTab === 'all' ?
   userOrders :
@@ -144,6 +160,41 @@ export function MyOrdersPage() {
           Đơn hàng của tôi
         </h1>
 
+        {!user &&
+        <form
+          onSubmit={lookupGuestOrders}
+          className="bg-white rounded-xl shadow-warm border border-border p-6 mb-8">
+            <h2 className="font-serif text-xl font-bold text-heading mb-2">
+              Tra cá»©u lá»‹ch sá»­ mua hÃ ng guest
+            </h2>
+            <p className="text-sm text-muted mb-4">
+              Nháº­p sá»‘ Ä‘iá»‡n thoáº¡i Ä‘Ã£ dÃ¹ng khi Ä‘áº·t hÃ ng khÃ´ng Ä‘Äƒng nháº­p.
+            </p>
+            <div className="flex flex-col sm:flex-row gap-3">
+              <input
+                value={guestPhone}
+                onChange={(e) => setGuestPhone(e.target.value)}
+                required
+                className="flex-1 px-4 py-3 rounded-lg border border-border focus:ring-2 focus:ring-primary focus:border-primary outline-none"
+                placeholder="Sá»‘ Ä‘iá»‡n thoáº¡i"
+              />
+              <button
+                type="submit"
+                className="px-6 py-3 bg-primary text-white rounded-lg font-medium hover:bg-primary-hover transition-colors">
+                Tra cá»©u
+              </button>
+              <Link
+                to="/dang-nhap"
+                className="px-6 py-3 border border-border rounded-lg font-medium text-heading hover:border-primary transition-colors text-center">
+                ÄÄƒng nháº­p
+              </Link>
+            </div>
+            {guestLookupMessage &&
+            <p className="mt-3 text-sm text-sale">{guestLookupMessage}</p>
+            }
+          </form>
+        }
+
         <div className="bg-white rounded-xl shadow-warm border border-border overflow-hidden mb-8">
           {/* Tabs */}
           <div className="flex overflow-x-auto border-b border-border hide-scrollbar">
@@ -201,7 +252,7 @@ export function MyOrdersPage() {
                       </div>
                       <div className="flex items-center justify-between md:justify-end gap-4 w-full md:w-auto">
                         {getStatusBadge(order.orderStatus)}
-                        {order.orderStatus === 'completed' &&
+                        {user && order.orderStatus === 'completed' &&
                     <button
                       onClick={() => {
                         setReviewOrder(order);
@@ -383,7 +434,7 @@ export function MyOrdersPage() {
               </div>
 
               <div className="p-6 border-t border-border bg-background flex justify-end gap-4">
-                {(selectedOrder.orderStatus === 'pending' ||
+                {user && (selectedOrder.orderStatus === 'pending' ||
               selectedOrder.orderStatus === 'confirmed') &&
               <button
                 onClick={() => setShowCancelModal(true)}
