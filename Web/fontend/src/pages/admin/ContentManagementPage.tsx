@@ -13,6 +13,12 @@ export function ContentManagementPage() {
   const [articles, setArticles] = useState<Article[]>([]);
   const [activeTab, setActiveTab] = useState('news');
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [articleForm, setArticleForm] = useState({
+    title: '',
+    excerpt: '',
+    image: '',
+    content: ''
+  });
   useEffect(() => {
     api.get<Article[]>('/content').then(setArticles).catch(() => setArticles([]));
   }, []);
@@ -35,6 +41,43 @@ export function ContentManagementPage() {
   }];
 
   const newsArticles = articles.filter((a) => a.category === 'news');
+  const openArticleModal = () => {
+    setArticleForm({
+      title: '',
+      excerpt: '',
+      image: '',
+      content: ''
+    });
+    setIsModalOpen(true);
+  };
+  const saveArticle = () => {
+    const title = articleForm.title.trim();
+    if (!title) {
+      return;
+    }
+    const slug = title
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-|-$/g, '');
+
+    setArticles((currentArticles) => [
+      {
+        id: `local-${Date.now()}`,
+        title,
+        slug,
+        excerpt: articleForm.excerpt,
+        content: articleForm.content,
+        image: articleForm.image,
+        category: 'news',
+        createdAt: new Date().toISOString(),
+        isPublished: true
+      },
+      ...currentArticles
+    ]);
+    setIsModalOpen(false);
+  };
   return (
     <div className="max-w-7xl mx-auto space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -71,7 +114,7 @@ export function ContentManagementPage() {
           <div className="space-y-4">
               <div className="flex justify-end">
                 <button
-                onClick={() => setIsModalOpen(true)}
+                onClick={openArticleModal}
                 className="bg-primary text-white px-4 py-2 rounded-lg font-medium hover:bg-primary-hover transition-colors shadow-warm flex items-center text-sm">
                 
                   <PlusIcon className="w-4 h-4 mr-2" />
@@ -124,7 +167,7 @@ export function ContentManagementPage() {
                         <td className="p-4">
                           <div className="flex items-center justify-center space-x-2">
                             <button
-                          onClick={() => setIsModalOpen(true)}
+                          onClick={openArticleModal}
                           className="p-1.5 text-blue-600 hover:bg-blue-50 rounded transition-colors"
                           title="Sửa">
                           
@@ -224,6 +267,10 @@ export function ContentManagementPage() {
                   </label>
                   <input
                   type="text"
+                  value={articleForm.title}
+                  onChange={(event) =>
+                    setArticleForm((current) => ({ ...current, title: event.target.value }))
+                  }
                   className="w-full px-4 py-2 rounded-lg border border-border focus:ring-2 focus:ring-primary focus:border-primary outline-none"
                   placeholder="Nhập tiêu đề bài viết" />
                 
@@ -234,6 +281,10 @@ export function ContentManagementPage() {
                   </label>
                   <textarea
                   rows={2}
+                  value={articleForm.excerpt}
+                  onChange={(event) =>
+                    setArticleForm((current) => ({ ...current, excerpt: event.target.value }))
+                  }
                   className="w-full px-4 py-2 rounded-lg border border-border focus:ring-2 focus:ring-primary focus:border-primary outline-none"
                   placeholder="Đoạn mô tả ngắn...">
                 </textarea>
@@ -244,6 +295,10 @@ export function ContentManagementPage() {
                   </label>
                   <input
                   type="text"
+                  value={articleForm.image}
+                  onChange={(event) =>
+                    setArticleForm((current) => ({ ...current, image: event.target.value }))
+                  }
                   className="w-full px-4 py-2 rounded-lg border border-border focus:ring-2 focus:ring-primary focus:border-primary outline-none"
                   placeholder="https://..." />
                 
@@ -263,6 +318,10 @@ export function ContentManagementPage() {
                     </div>
                     <textarea
                     rows={10}
+                    value={articleForm.content}
+                    onChange={(event) =>
+                      setArticleForm((current) => ({ ...current, content: event.target.value }))
+                    }
                     className="w-full p-4 outline-none resize-none text-body"
                     placeholder="Nhập nội dung bài viết...">
                   </textarea>
@@ -290,7 +349,7 @@ export function ContentManagementPage() {
                   Hủy
                 </button>
                 <button
-                onClick={() => setIsModalOpen(false)}
+                onClick={saveArticle}
                 className="px-6 py-2 bg-primary text-white rounded-lg font-medium hover:bg-primary-hover transition-colors shadow-warm">
                 
                   Lưu bài viết

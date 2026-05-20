@@ -17,6 +17,7 @@ export function UserManagementPage() {
   const { orders } = useOrder();
   const [users, setUsers] = useState<User[]>([]);
   const [activeTab, setActiveTab] = useState('all');
+  const [searchTerm, setSearchTerm] = useState('');
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [showPhoneBlacklistModal, setShowPhoneBlacklistModal] = useState(false);
@@ -44,8 +45,17 @@ export function UserManagementPage() {
     api.get<User[]>('/users').then(setUsers).catch(() => setUsers([]));
   }, []);
 
-  const filteredUsers =
-  activeTab === 'all' ? users : users.filter((u) => u.status === activeTab);
+  const normalizedSearchTerm = searchTerm.trim().toLowerCase();
+  const filteredUsers = users.filter((user) => {
+    const matchesTab = activeTab === 'all' || user.status === activeTab;
+    const matchesSearch =
+    normalizedSearchTerm === '' ||
+    user.name.toLowerCase().includes(normalizedSearchTerm) ||
+    user.email.toLowerCase().includes(normalizedSearchTerm) ||
+    user.phone.toLowerCase().includes(normalizedSearchTerm);
+
+    return matchesTab && matchesSearch;
+  });
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'normal':
@@ -135,6 +145,8 @@ export function UserManagementPage() {
             <input
               type="text"
               placeholder="Tìm tên, email, SĐT..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
               className="pl-10 pr-4 py-2 rounded-lg border border-border focus:ring-2 focus:ring-primary focus:border-primary outline-none w-full sm:w-64" />
             
           </div>

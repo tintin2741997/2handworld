@@ -12,10 +12,54 @@ import { api } from '../../services/api';
 export function StoreManagementPage() {
   const [stores, setStores] = useState<Store[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [storeForm, setStoreForm] = useState({
+    name: '',
+    address: '',
+    phone: ''
+  });
 
   useEffect(() => {
-    api.get<Store[]>('/stores').then(setStores).catch(() => setStores([]));
+    api.get<Store[]>('/stores')
+      .then((data) => {
+        setStores(data);
+        const firstStore = data[0];
+        if (firstStore) {
+          setStoreForm({
+            name: firstStore.name,
+            address: firstStore.address,
+            phone: firstStore.phone
+          });
+        }
+      })
+      .catch(() => setStores([]));
   }, []);
+
+  const openModal = (store?: Store) => {
+    if (store) {
+      setStoreForm({
+        name: store.name,
+        address: store.address,
+        phone: store.phone
+      });
+    }
+    setIsModalOpen(true);
+  };
+
+  const saveStore = () => {
+    setStores((currentStores) =>
+      currentStores.map((store, index) =>
+        index === 0
+          ? {
+              ...store,
+              name: storeForm.name,
+              address: storeForm.address,
+              phone: storeForm.phone
+            }
+          : store
+      )
+    );
+    setIsModalOpen(false);
+  };
 
   return (
     <div className="max-w-6xl mx-auto space-y-6">
@@ -29,7 +73,7 @@ export function StoreManagementPage() {
           </p>
         </div>
         <button
-          onClick={() => setIsModalOpen(true)}
+          onClick={() => openModal(stores[0])}
           className="bg-primary text-white px-4 py-2 rounded-lg font-medium hover:bg-primary-hover transition-colors shadow-warm flex items-center">
           <EditIcon className="w-5 h-5 mr-2" />
           Cập nhật thông tin
@@ -78,7 +122,7 @@ export function StoreManagementPage() {
                   <td className="p-4">
                     <div className="flex items-center justify-center">
                       <button
-                        onClick={() => setIsModalOpen(true)}
+                        onClick={() => openModal(store)}
                         className="p-1.5 text-blue-600 hover:bg-blue-50 rounded transition-colors"
                         title="Sửa thông tin cửa hàng">
                         <EditIcon className="w-4 h-4" />
@@ -118,6 +162,10 @@ export function StoreManagementPage() {
                     </label>
                     <input
                       type="text"
+                      value={storeForm.name}
+                      onChange={(event) =>
+                        setStoreForm((current) => ({ ...current, name: event.target.value }))
+                      }
                       className="w-full px-4 py-2 rounded-lg border border-border focus:ring-2 focus:ring-primary focus:border-primary outline-none"
                       placeholder="VD: 2HANDWORLD"
                     />
@@ -128,6 +176,10 @@ export function StoreManagementPage() {
                     </label>
                     <input
                       type="text"
+                      value={storeForm.address}
+                      onChange={(event) =>
+                        setStoreForm((current) => ({ ...current, address: event.target.value }))
+                      }
                       className="w-full px-4 py-2 rounded-lg border border-border focus:ring-2 focus:ring-primary focus:border-primary outline-none"
                       placeholder="Nhập địa chỉ cửa hàng"
                     />
@@ -138,6 +190,10 @@ export function StoreManagementPage() {
                     </label>
                     <input
                       type="tel"
+                      value={storeForm.phone}
+                      onChange={(event) =>
+                        setStoreForm((current) => ({ ...current, phone: event.target.value }))
+                      }
                       className="w-full px-4 py-2 rounded-lg border border-border focus:ring-2 focus:ring-primary focus:border-primary outline-none"
                       placeholder="Nhập số điện thoại"
                     />
@@ -164,7 +220,7 @@ export function StoreManagementPage() {
                   Hủy
                 </button>
                 <button
-                  onClick={() => setIsModalOpen(false)}
+                  onClick={saveStore}
                   className="px-6 py-2 bg-primary text-white rounded-lg font-medium hover:bg-primary-hover transition-colors shadow-warm">
                   Lưu thông tin
                 </button>

@@ -6,11 +6,11 @@ USE `2handworld_schema`;
 INSERT IGNORE INTO `InventoryLog`
 (`LogID`, `ProductID`, `OrderID`, `ChangeQuantity`, `Reason`, `LogDate`)
 VALUES
-(1, 1, 1, -1, 'Xuáº¥t bÃ¡n', '2026-01-12 09:15:00'),
-(2, 2, 2, -1, 'Xuáº¥t bÃ¡n', '2026-02-08 14:20:00'),
-(3, 3, 2, -1, 'Xuáº¥t bÃ¡n', '2026-02-08 14:20:00'),
-(4, 4, 3, -1, 'Xuáº¥t bÃ¡n', '2026-03-18 10:05:00'),
-(5, 7, 4, -2, 'Xuáº¥t bÃ¡n', '2026-04-20 08:40:00');
+(1, 1, 1, -1, 'Xuất bán', '2026-01-12 09:15:00'),
+(2, 2, 2, -1, 'Xuất bán', '2026-02-08 14:20:00'),
+(3, 3, 2, -1, 'Xuất bán', '2026-02-08 14:20:00'),
+(4, 4, 3, -1, 'Xuất bán', '2026-03-18 10:05:00'),
+(5, 7, 4, -2, 'Xuất bán', '2026-04-20 08:40:00');
 
 INSERT IGNORE INTO `CancelRequest`
 (`RequestID`, `OrderID`, `UserID`, `ReasonBuyer`, `ReasonAdmin`, `Status`, `CreatedAt`, `ResolvedAt`, `ResolvedBy`)

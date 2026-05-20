@@ -667,14 +667,23 @@ function user_me(): void
 function user_list(): void
 {
     require_admin();
-    $stmt = db()->query(
-        "SELECT DISTINCT u.*
-         FROM `Users` u
-         LEFT JOIN `UserRoles` ur ON ur.UserID = u.UserID
-         LEFT JOIN `Roles` r ON r.RoleID = ur.RoleID
-         WHERE u.Role = 'buyer' OR r.RoleCode = 'buyer'
-         ORDER BY u.CreatedAt DESC"
-    );
+    try {
+        $stmt = db()->query(
+            "SELECT DISTINCT u.*
+             FROM `Users` u
+             LEFT JOIN `UserRoles` ur ON ur.UserID = u.UserID
+             LEFT JOIN `Roles` r ON r.RoleID = ur.RoleID
+             WHERE u.Role = 'buyer' OR r.RoleCode = 'buyer'
+             ORDER BY u.CreatedAt DESC"
+        );
+    } catch (Throwable) {
+        $stmt = db()->query(
+            "SELECT *
+             FROM `Users`
+             WHERE Role = 'buyer'
+             ORDER BY CreatedAt DESC"
+        );
+    }
     json_response(['success' => true, 'data' => array_map('user_payload', $stmt->fetchAll())]);
 }
 
@@ -852,7 +861,7 @@ function guest_order_history(): void
 {
     $phone = trim((string) ($_GET['phone'] ?? ''));
     if ($phone === '') {
-        error_response('Cáº§n nháº­p sá»‘ Ä‘iá»‡n thoáº¡i Ä‘áº·t hÃ ng.', 422);
+        error_response('Cần nhập số điện thoại đặt hàng.', 422);
     }
 
     $stmt = db()->prepare(
@@ -1133,7 +1142,7 @@ function report_dashboard(): void
         'totalCategories' => (int) db()->query('SELECT COUNT(*) FROM `Category`')->fetchColumn(),
         'totalArticles' => count(static_articles()),
         'totalOrders' => (int) db()->query('SELECT COUNT(*) FROM `vw_OrderPaymentSummary`')->fetchColumn(),
-        'revenue' => (int) db()->query("SELECT COALESCE(SUM(CalculatedTotalAmount), 0) FROM `vw_OrderPaymentSummary` WHERE Status = 'completed'")->fetchColumn(),
+        'revenue' => (int) db()->query("SELECT COALESCE(SUM(TotalAmount), 0) FROM `vw_OrderPaymentSummary` WHERE Status = 'completed'")->fetchColumn(),
         'profit' => (int) db()->query(
             "SELECT COALESCE(SUM((od.Price - p.ImportPrice) * od.Quantity), 0)
              FROM `OrderDetail` od
@@ -1165,13 +1174,13 @@ function report_revenue(): void
              SELECT o.OrderID,
                     {$periodExpression} AS month,
                     {$groupExpression} AS sortPeriod,
-                    o.CalculatedTotalAmount AS revenue,
+                    o.TotalAmount AS revenue,
                     COALESCE(SUM((od.Price - p.ImportPrice) * od.Quantity), 0) AS profit
              FROM `vw_OrderPaymentSummary` o
              JOIN `OrderDetail` od ON od.OrderID = o.OrderID
              JOIN `vw_ProductInventory` p ON p.ProductID = od.ProductID
              WHERE o.Status = 'completed'
-             GROUP BY o.OrderID, o.CalculatedTotalAmount, {$groupExpression}, {$periodExpression}
+             GROUP BY o.OrderID, o.TotalAmount, {$groupExpression}, {$periodExpression}
          ) report
          GROUP BY report.sortPeriod, report.month
          ORDER BY report.sortPeriod ASC"

@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import {
   EyeIcon,
   XIcon,
@@ -33,6 +34,17 @@ export function OrderManagementPage() {
   useEffect(() => {
     api.get<User[]>('/users').then(setUsers).catch(() => setUsers([]));
   }, []);
+  useEffect(() => {
+    if (!isDetailOpen) {
+      return;
+    }
+
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [isDetailOpen]);
   const tabs = [
   {
     id: 'all',
@@ -366,6 +378,7 @@ export function OrderManagementPage() {
                     </td>
                     <td className="px-4 py-3 text-center">
                       <button
+                    data-testid="admin-order-detail-button"
                     onClick={() => openOrderDetail(order)}
                     className="p-1.5 text-blue-600 hover:bg-blue-50 rounded transition-colors"
                     title="Xem chi tiết">
@@ -382,10 +395,14 @@ export function OrderManagementPage() {
       </div>
 
       {/* Order Detail Slide-over / Modal */}
-      <AnimatePresence>
-        {isDetailOpen && selectedOrder &&
-        <div className="fixed inset-0 z-50 flex justify-end bg-black/50">
+      {createPortal(
+        <AnimatePresence>
+          {isDetailOpen && selectedOrder &&
+          <div
+            data-testid="admin-order-detail-overlay"
+            className="fixed inset-0 z-[100] flex justify-end bg-black/50">
             <motion.div
+            data-testid="admin-order-detail-panel"
             initial={{
               x: '100%'
             }}
@@ -694,8 +711,10 @@ export function OrderManagementPage() {
               </div>
             </motion.div>
           </div>
-        }
-      </AnimatePresence>
+          }
+        </AnimatePresence>,
+        document.body
+      )}
     </div>);
 
 }

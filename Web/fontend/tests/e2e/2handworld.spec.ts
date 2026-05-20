@@ -1,6 +1,8 @@
 import { expect, test, type APIRequestContext, type Page } from '@playwright/test';
 
-const API_BASE = 'http://127.0.0.1/2handworld/Web/backend/api';
+const API_BASE =
+  process.env.E2E_API_BASE_URL ||
+  'http://127.0.0.1/2handworld%20v2/2handworld/Web/backend/api';
 const buyer = { email: 'nguyenvana@gmail.com', password: '123456' };
 const admin = { email: 'admin@2hand.vn', password: 'admin123' };
 const tempBuyerPassword = '123456';
@@ -218,6 +220,13 @@ async function getActiveProductWithStock(
   return product!;
 }
 
+async function expectReadableVietnamese(page: Page) {
+  const bodyText = await page.locator('body').innerText();
+  expect(bodyText, 'visible UI text should not contain mojibake Vietnamese encoding artifacts').not.toMatch(
+    /Ã|Ä|áº|Æ/
+  );
+}
+
 test.describe('2HAND WORLD buyer website', () => {
   test.beforeEach(async ({ page }) => {
     await page.context().clearCookies();
@@ -225,22 +234,34 @@ test.describe('2HAND WORLD buyer website', () => {
     await page.evaluate(() => localStorage.clear());
   });
 
-  test('[ID:BW01][EXPECT:Trang public va ket qua tim kiem hien thi dung route va co main] opens public pages and searches products', async ({ page }) => {
+  test('[ID:BW01][EXPECT:Trang public hien dung noi dung chinh va ket qua tim kiem hien san pham phu hop] opens public pages and searches products', async ({ page }) => {
     await page.goto('/');
     await expect(page.locator('header')).toContainText('2HAND WORLD');
-    await expect(page.locator('main')).toBeVisible();
+    await expect(page.locator('main')).toContainText('Sản phẩm mới');
+    await expectReadableVietnamese(page);
 
-    for (const path of ['/san-pham', '/cua-hang', '/tin-tuc', '/gioi-thieu', '/chinh-sach', '/lien-he', '/sitemap']) {
+    for (const { path, expectedText } of [
+      { path: '/san-pham', expectedText: 'Tất cả sản phẩm' },
+      { path: '/cua-hang', expectedText: 'Cửa hàng 2HANDWORLD' },
+      { path: '/tin-tuc', expectedText: 'Tin tức & Blog' },
+      { path: '/gioi-thieu', expectedText: 'Giới thiệu' },
+      { path: '/chinh-sach', expectedText: 'Chính sách' },
+      { path: '/lien-he', expectedText: 'Liên hệ' },
+      { path: '/sitemap', expectedText: 'Sơ đồ trang' }
+    ]) {
       await page.goto(path);
-      await expect(page.locator('main')).toBeVisible();
       await expect(page).toHaveURL(new RegExp(path.replace('/', '\\/')));
+      await expect(page.locator('main')).toContainText(expectedText);
+      await expectReadableVietnamese(page);
     }
 
     await page.goto('/');
     await page.locator('header form input[type="text"]').first().fill('test');
     await page.locator('header form button[type="submit"]').first().click();
     await expect(page).toHaveURL(/\/san-pham\?q=test/);
-    await expect(page.locator('main')).toBeVisible();
+    await expect(page.locator('main')).toContainText('Kết quả tìm kiếm');
+    await expect(page.locator('main')).toContainText(/tìm kiếm|test/i);
+    await expectReadableVietnamese(page);
   });
 
   test('[ID:BA02][EXPECT:Login sai hien loi, login dung vao he thong, logout quay lai trang dang nhap] validates login errors and logs buyer in/out', async ({ page }) => {
@@ -494,11 +515,24 @@ test.describe('2HANDWORLD admin', () => {
     await expect(page).toHaveURL(/\/admin/);
   });
 
-  test('[ID:AD-MODULES-01][EXPECT:Mo duoc tat ca module admin va sidebar hien dung] opens every admin module', async ({ page }) => {
-    for (const path of ['/admin', '/admin/san-pham', '/admin/danh-muc', '/admin/cua-hang', '/admin/noi-dung', '/admin/don-hang', '/admin/doanh-thu', '/admin/danh-gia', '/admin/nguoi-dung', '/admin/ton-kho']) {
+  test('[ID:AD-MODULES-01][EXPECT:Mo duoc tat ca module admin va nav hien dung] opens every admin module', async ({ page }) => {
+    for (const { path, heading } of [
+      { path: '/admin', heading: 'Dashboard' },
+      { path: '/admin/san-pham', heading: 'Quản lý sản phẩm' },
+      { path: '/admin/danh-muc', heading: 'Quản lý danh mục' },
+      { path: '/admin/cua-hang', heading: 'Quản lý cửa hàng' },
+      { path: '/admin/noi-dung', heading: 'Quản lý nội dung' },
+      { path: '/admin/don-hang', heading: 'Quản lý đơn hàng' },
+      { path: '/admin/doanh-thu', heading: 'Báo cáo doanh thu' },
+      { path: '/admin/danh-gia', heading: 'Quản lý đánh giá' },
+      { path: '/admin/nguoi-dung', heading: 'Quản lý người dùng' },
+      { path: '/admin/ton-kho', heading: 'Quản lý tồn kho' }
+    ]) {
       await page.goto(path);
       await expect(page.locator('main')).toBeVisible();
-      await expect(page.locator('aside')).toContainText('Admin');
+      await expect(page.locator('h1').first()).toContainText(heading);
+      await expect(page.locator('header')).toContainText('Admin');
+      await expectReadableVietnamese(page);
     }
   });
 
@@ -617,7 +651,7 @@ test.describe('2HANDWORLD admin', () => {
     await expect(row).toContainText('8');
 
     await page.locator('label').filter({ hasText: /s.p h.t|low/i }).locator('input').check();
-    await expect(page.locator('main')).toBeVisible();
+    await expect(page.locator('table tbody')).not.toContainText(created.name);
   });
 
   test('[ID:AD-REPORT-01][EXPECT:Bao cao doanh thu theo ngay thang va danh muc hien so lieu] displays revenue, profit, order, and category reports', async ({ page }) => {
@@ -633,27 +667,36 @@ test.describe('2HANDWORLD admin', () => {
   });
 
   test('[ID:AD-CONTENT-STORE-01][EXPECT:Quan ly cua hang va noi dung mo form nhap lieu va dong luu dung] opens store and content editing surfaces', async ({ page }) => {
+    const storeName = `2HANDWORLD E2E ${Date.now()}`;
+    const articleTitle = `Article E2E ${Date.now()}`;
+
     await page.goto('/admin/cua-hang');
     await expect(page.locator('table tbody tr').first()).toBeVisible();
     await page.locator('button').filter({ hasText: /C.p nh.t|Update/i }).first().click();
     const storeModal = page.locator('.fixed.inset-0').last();
-    await storeModal.locator('input[type="text"]').nth(0).fill('2HANDWORLD E2E');
+    await storeModal.locator('input[type="text"]').nth(0).fill(storeName);
     await storeModal.locator('input[type="text"]').nth(1).fill('123 Admin Store Street');
     await storeModal.locator('input[type="tel"]').fill('0909000000');
     await storeModal.locator('button').filter({ hasText: /L.u|Save/i }).last().click();
     await expect(page.locator('.fixed.inset-0')).toHaveCount(0);
+    await expect(page.locator('table tbody')).toContainText(storeName);
+    await expect(page.locator('table tbody')).toContainText('123 Admin Store Street');
+    await expect(page.locator('table tbody')).toContainText('0909000000');
 
     await page.goto('/admin/noi-dung');
     await page.locator('button').filter({ hasText: /Th.m|Add|\+/i }).first().click();
     const articleModal = page.locator('.fixed.inset-0').last();
-    await articleModal.locator('input[type="text"]').nth(0).fill(`Article E2E ${Date.now()}`);
+    await articleModal.locator('input[type="text"]').nth(0).fill(articleTitle);
     await articleModal.locator('textarea').first().fill('Short article summary');
     await articleModal.locator('input[type="text"]').nth(1).fill('https://picsum.photos/seed/content-e2e/800/600');
     await articleModal.locator('textarea').nth(1).fill('Long article content from Playwright');
     await articleModal.locator('button').filter({ hasText: /L.u|Save/i }).last().click();
     await expect(page.locator('.fixed.inset-0')).toHaveCount(0);
+    await expect(page.locator('table tbody')).toContainText(articleTitle);
+    await expect(page.locator('table tbody')).toContainText('Short article summary');
 
     await page.locator('button').filter({ hasText: /Gi|about/i }).click();
+    await expect(page.locator('h3')).toContainText(/Gi|about/i);
     await expect(page.locator('textarea').first()).toBeVisible();
   });
 
@@ -669,6 +712,36 @@ test.describe('2HANDWORLD admin', () => {
     const row = page.locator('table tbody tr').first();
     await expect(row).toContainText(order.orderNumber);
     await expect(row).toContainText(/Th.t b.i|failed/i);
+  });
+
+  test('[ID:AD-ORDER-MODAL-UI-01][EXPECT:Popup chi tiet don hang phu toan man hinh va nam tren header admin] order detail modal covers the whole viewport above the admin header', async ({ page, request }) => {
+    const { order } = await createBuyerOrderViaApi(request);
+
+    await page.goto('/admin/don-hang');
+    await page.locator('input[placeholder]').first().fill(order.orderNumber);
+    const row = page.locator('table tbody tr').first();
+    await expect(row).toContainText(order.orderNumber);
+    await row.getByTestId('admin-order-detail-button').click();
+
+    const overlay = page.getByTestId('admin-order-detail-overlay');
+    await expect(overlay).toBeVisible();
+    await expect(page.getByTestId('admin-order-detail-panel')).toContainText(order.orderNumber);
+
+    const overlayBox = await overlay.boundingBox();
+    const viewport = page.viewportSize();
+    expect(overlayBox, 'order detail overlay should have a measurable full-screen box').toBeTruthy();
+    expect(viewport, 'test should run with a known viewport size').toBeTruthy();
+    expect(overlayBox!.x, 'overlay must start at the left viewport edge').toBeLessThanOrEqual(1);
+    expect(overlayBox!.y, 'overlay must start at the top viewport edge, covering the admin header area').toBeLessThanOrEqual(1);
+    expect(overlayBox!.width, 'overlay must cover the viewport width').toBeGreaterThanOrEqual(viewport!.width - 1);
+    expect(overlayBox!.height, 'overlay must cover the viewport height').toBeGreaterThanOrEqual(viewport!.height - 1);
+
+    const overlayIsTopElement = await page.evaluate(() => {
+      const topLeftElement = document.elementFromPoint(20, 20);
+      return Boolean(topLeftElement?.closest('[data-testid="admin-order-detail-overlay"]'));
+    });
+    expect(overlayIsTopElement, 'overlay should be above sticky admin navigation at the top of the screen').toBeTruthy();
+    await expect(page.locator('body')).toHaveCSS('overflow', 'hidden');
   });
 
   test('[ID:AD09-CANCEL-REQ-01][EXPECT:Yeu cau huy hien dung ly do buyer va admin xu ly tu choi/duyet dung trang thai] processes cancel request with buyer reason and admin rejection/approval', async ({ page, request }) => {

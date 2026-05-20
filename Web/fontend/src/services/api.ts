@@ -9,16 +9,19 @@ declare global {
 }
 
 const defaultApiBaseUrl = () => {
+  const localXamppApiUrl =
+    'http://127.0.0.1/2handworld%20v2/2handworld/Web/backend/api';
+
   if (typeof window === 'undefined') {
-    return 'http://127.0.0.1/myproject/2handworld/Web/backend/api';
+    return localXamppApiUrl;
   }
 
   const isViteDevServer = ['5173', '4173'].includes(window.location.port);
   if (isViteDevServer) {
-    return 'http://127.0.0.1/myproject/2handworld/Web/backend/api';
+    return localXamppApiUrl;
   }
 
-  return `${window.location.origin}/myproject/2handworld/Web/backend/api`;
+  return `${window.location.origin}/2handworld%20v2/2handworld/Web/backend/api`;
 };
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || defaultApiBaseUrl();

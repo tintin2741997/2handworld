@@ -37,11 +37,11 @@ export function MyOrdersPage() {
       );
       setGuestOrders(data);
       if (data.length === 0) {
-        setGuestLookupMessage('KhÃ´ng tÃ¬m tháº¥y Ä‘Æ¡n hÃ ng guest theo sá»‘ Ä‘iá»‡n thoáº¡i nÃ y.');
+        setGuestLookupMessage('Không tìm thấy đơn hàng guest theo số điện thoại này.');
       }
     } catch (error) {
       setGuestOrders([]);
-      setGuestLookupMessage(error instanceof Error ? error.message : 'KhÃ´ng thá»ƒ tra cá»©u Ä‘Æ¡n hÃ ng.');
+      setGuestLookupMessage(error instanceof Error ? error.message : 'Không thể tra cứu đơn hàng.');
     }
   };
 
@@ -165,10 +165,10 @@ export function MyOrdersPage() {
           onSubmit={lookupGuestOrders}
           className="bg-white rounded-xl shadow-warm border border-border p-6 mb-8">
             <h2 className="font-serif text-xl font-bold text-heading mb-2">
-              Tra cá»©u lá»‹ch sá»­ mua hÃ ng guest
+              Tra cứu lịch sử mua hàng guest
             </h2>
             <p className="text-sm text-muted mb-4">
-              Nháº­p sá»‘ Ä‘iá»‡n thoáº¡i Ä‘Ã£ dÃ¹ng khi Ä‘áº·t hÃ ng khÃ´ng Ä‘Äƒng nháº­p.
+              Nhập số điện thoại đã dùng khi đặt hàng không đăng nhập.
             </p>
             <div className="flex flex-col sm:flex-row gap-3">
               <input
@@ -176,7 +176,7 @@ export function MyOrdersPage() {
                 onChange={(e) => setGuestPhone(e.target.value)}
                 required
                 className="flex-1 px-4 py-3 rounded-lg border border-border focus:ring-2 focus:ring-primary focus:border-primary outline-none"
-                placeholder="Sá»‘ Ä‘iá»‡n thoáº¡i"
+                placeholder="Số điện thoại"
               />
               <button
                 type="submit"
@@ -186,7 +186,7 @@ export function MyOrdersPage() {
               <Link
                 to="/dang-nhap"
                 className="px-6 py-3 border border-border rounded-lg font-medium text-heading hover:border-primary transition-colors text-center">
-                ÄÄƒng nháº­p
+                Đăng nhập
               </Link>
             </div>
             {guestLookupMessage &&

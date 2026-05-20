@@ -1,7 +1,7 @@
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { BrowserRouter as Router, Navigate, Routes, Route } from 'react-router-dom';
 import { CartProvider } from './contexts/CartContext';
-import { AuthProvider } from './contexts/AuthContext';
+import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { OrderProvider } from './contexts/OrderContext';
 import { Header } from './components/layout/Header';
 import { Footer } from './components/layout/Footer';
@@ -38,6 +38,12 @@ const BuyerLayout = ({ children }: {children: React.ReactNode;}) =>
     <div className="flex-grow">{children}</div>
     <Footer />
   </div>;
+
+const RequireAccount = ({ children }: {children: React.ReactNode;}) => {
+  const { isLoggedIn } = useAuth();
+
+  return isLoggedIn ? <>{children}</> : <Navigate to="/dang-nhap" replace />;
+};
 
 export function App() {
   return (
@@ -101,7 +107,9 @@ export function App() {
                 path="/ho-so"
                 element={
                 <BuyerLayout>
-                    <ProfilePage />
+                    <RequireAccount>
+                      <ProfilePage />
+                    </RequireAccount>
                   </BuyerLayout>
                 } />
               
@@ -109,7 +117,9 @@ export function App() {
                 path="/don-hang"
                 element={
                 <BuyerLayout>
-                    <MyOrdersPage />
+                    <RequireAccount>
+                      <MyOrdersPage />
+                    </RequireAccount>
                   </BuyerLayout>
                 } />
               
