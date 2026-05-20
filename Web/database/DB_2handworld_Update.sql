@@ -43,6 +43,25 @@ CREATE TABLE `Users` (
 -- ============================================================
 -- 2. Bảng Category
 -- ============================================================
+-- ============================================================
+-- 1.1. Bảng Roles và UserRoles
+-- Mapping user-role ở tầng database, cho phép một user có nhiều role
+-- và không phụ thuộc hardcode một tài khoản admin duy nhất ở ứng dụng.
+-- ============================================================
+CREATE TABLE IF NOT EXISTS `Roles` (
+    `RoleID`      INT          AUTO_INCREMENT PRIMARY KEY,
+    `RoleCode`    VARCHAR(30)  NOT NULL UNIQUE,
+    `RoleName`    VARCHAR(100) NOT NULL,
+    `Description` VARCHAR(255)
+);
+
+CREATE TABLE IF NOT EXISTS `UserRoles` (
+    `UserID`     INT      NOT NULL,
+    `RoleID`     INT      NOT NULL,
+    `AssignedAt` DATETIME DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (`UserID`, `RoleID`)
+);
+
 CREATE TABLE `Category` (
     `CategoryID`   INT          AUTO_INCREMENT PRIMARY KEY,
     `CategoryName` VARCHAR(100) NOT NULL
@@ -256,6 +275,10 @@ ALTER TABLE `Blacklist`
         FOREIGN KEY (`UserID`) REFERENCES `Users`(`UserID`);
 
 -- Order → Users (UserID nullable: walk-in có UserID = NULL)
+ALTER TABLE `UserRoles`
+    ADD CONSTRAINT `fk_UserRoles_Users` FOREIGN KEY (`UserID`) REFERENCES `Users`(`UserID`),
+    ADD CONSTRAINT `fk_UserRoles_Roles` FOREIGN KEY (`RoleID`) REFERENCES `Roles`(`RoleID`);
+
 ALTER TABLE `Order`
     ADD CONSTRAINT `fk_Order_Users`
         FOREIGN KEY (`UserID`) REFERENCES `Users`(`UserID`);
@@ -467,6 +490,24 @@ END //
 DELIMITER ;
 
 -- ============================================================
+-- DEFAULT ROLE DATA
+-- ============================================================
+
+INSERT INTO `Roles` (`RoleCode`, `RoleName`, `Description`) VALUES
+('admin', 'Administrator', 'Quản trị hệ thống, xem và thao tác toàn bộ dữ liệu'),
+('buyer', 'Buyer', 'Người mua đã đăng nhập, được xem lịch sử mua hàng và tạo đánh giá'),
+('guest', 'Guest', 'Khách chưa đăng nhập, chỉ xem dữ liệu công khai và đặt hàng walk-in')
+ON DUPLICATE KEY UPDATE
+    `RoleName` = VALUES(`RoleName`),
+    `Description` = VALUES(`Description`);
+
+INSERT INTO `UserRoles` (`UserID`, `RoleID`)
+SELECT u.`UserID`, r.`RoleID`
+FROM `Users` u
+JOIN `Roles` r ON r.`RoleCode` = u.`Role`
+ON DUPLICATE KEY UPDATE `AssignedAt` = `AssignedAt`;
+
+-- ============================================================
 -- VIEWS
 -- ============================================================
 
@@ -494,6 +535,43 @@ FROM `Product` p
 JOIN `Category` c ON c.`CategoryID` = p.`CategoryID`
 LEFT JOIN `Inventory` i ON i.`ProductID` = p.`ProductID`;
 
+CREATE OR REPLACE VIEW `vw_GuestProductCatalog` AS
+SELECT
+    `ProductID`,
+    `CategoryID`,
+    `ProductName`,
+    `ProductImage`,
+    `CategoryName`,
+    `FinalPrice`,
+    `Condition`,
+    `StockQuantity`,
+    `ProductStatus`
+FROM `vw_ProductInventory`
+WHERE `ProductStatus` = 'active';
+
+CREATE OR REPLACE VIEW `vw_BuyerProductCatalog` AS
+SELECT
+    `ProductID`,
+    `CategoryID`,
+    `ProductName`,
+    `ProductImage`,
+    `CategoryName`,
+    `Price`,
+    `DiscountPercent`,
+    `FinalPrice`,
+    `Description`,
+    `Condition`,
+    `SoldQuantity`,
+    `StockQuantity`,
+    `ProductStatus`,
+    `CreatedAt`
+FROM `vw_ProductInventory`
+WHERE `ProductStatus` != 'hidden';
+
+CREATE OR REPLACE VIEW `vw_AdminProductCatalog` AS
+SELECT *
+FROM `vw_ProductInventory`;
+
 CREATE OR REPLACE VIEW `vw_OrderPaymentSummary` AS
 SELECT
     o.`OrderID`,
@@ -502,7 +580,8 @@ SELECT
     u.`Email`,
     o.`PhoneNumber`,
     o.`Address`,
-    o.`TotalAmount`,
+    COALESCE(SUM(od.`Price` * od.`Quantity`), o.`TotalAmount`, 0) AS `TotalAmount`,
+    COALESCE(SUM(od.`Price` * od.`Quantity`), 0) AS `CalculatedTotalAmount`,
     o.`Status`,
     o.`Status` AS `OrderStatus`,
     pm.`MethodName`,
@@ -513,5 +592,61 @@ SELECT
     o.`UpdatedAt`
 FROM `Order` o
 LEFT JOIN `Users` u ON u.`UserID` = o.`UserID`
+LEFT JOIN `OrderDetail` od ON od.`OrderID` = o.`OrderID`
 LEFT JOIN `Payment` pay ON pay.`OrderID` = o.`OrderID`
-LEFT JOIN `PaymentMethod` pm ON pm.`MethodID` = pay.`MethodID`;
+LEFT JOIN `PaymentMethod` pm ON pm.`MethodID` = pay.`MethodID`
+GROUP BY
+    o.`OrderID`,
+    o.`UserID`,
+    u.`Username`,
+    u.`Email`,
+    o.`PhoneNumber`,
+    o.`Address`,
+    o.`TotalAmount`,
+    o.`Status`,
+    pm.`MethodName`,
+    pay.`Status`,
+    pay.`PaymentDate`,
+    o.`OrderDate`,
+    o.`CreatedAt`,
+    o.`UpdatedAt`;
+
+CREATE OR REPLACE VIEW `vw_BuyerOrderHistory` AS
+SELECT
+    `OrderID`,
+    `UserID`,
+    `Username`,
+    `PhoneNumber`,
+    `Address`,
+    `TotalAmount`,
+    `CalculatedTotalAmount`,
+    `Status`,
+    `OrderStatus`,
+    `MethodName`,
+    `PaymentStatus`,
+    `PaymentDate`,
+    `OrderDate`,
+    `CreatedAt`,
+    `UpdatedAt`
+FROM `vw_OrderPaymentSummary`
+WHERE `UserID` IS NOT NULL;
+
+CREATE OR REPLACE VIEW `vw_GuestOrderLookup` AS
+SELECT
+    `OrderID`,
+    `UserID`,
+    `Username`,
+    `Email`,
+    `PhoneNumber`,
+    `Address`,
+    `TotalAmount`,
+    `CalculatedTotalAmount`,
+    `Status`,
+    `OrderStatus`,
+    `MethodName`,
+    `PaymentStatus`,
+    `OrderDate`,
+    `CreatedAt`,
+    `UpdatedAt`
+FROM `vw_OrderPaymentSummary`
+WHERE `UserID` IS NULL;
